@@ -1,0 +1,304 @@
+---
+title: "SC-HW2"
+author: 
+- 'ID : 111024517'
+- 'Name : 鄭家豪'
+date: due on 03/20
+geometry: left=3cm,right=3cm,top=2cm,bottom=2cm
+header-includes:
+  - \usepackage{leading}
+  - \leading{18pt}
+  - \usepackage{xeCJK}
+  - \setCJKmainfont{標楷體}
+  - \setCJKmonofont{標楷體}
+output:
+  pdf_document:
+    latex_engine: xelatex
+classoption: a4paper
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+library(stats)
+```
+
+# 1.
+Weibull($\alpha=1,\beta=1.5$):
+$$
+\begin{split}
+& f(x;\alpha,\beta)=1.5\sqrt{x}\exp{(-x^{1.5})},x>0. \\
+& F(x) = \int_{0}^{\infty} f(x) dx = 1-\exp{(-x^{1.5})},x\geq0. \\
+& E(X) = \alpha\Gamma{(1+1/\beta)} = 0.9027453 \\
+& Var(X) = \alpha^2[\Gamma{(1+2/\beta)}-(\Gamma{(1+1/\beta)})^2] = 0.3756903
+\end{split}
+$$
+```{r}
+a=1
+b=1.5
+true.mean = a*gamma(1+1/b)
+true.var = a^2*(gamma(1+2/b)-(gamma(1+1/b)^2))
+kable(t(c(true.mean,true.var)))
+```
+
+## (a) (Both mean and variance are unknown)
+By W.L.L.N and Binomial expansion,
+$$
+\begin{split}
+&\frac{1}{n}\sum_{i=1}^{n}(X_i-\bar{X})^k \xrightarrow{p} E(X-E(X))^k \\
+& \text{Then,we have } \\
+& \dfrac{\frac{1}{n}\sum_{i=1}^{n}(X_i-\bar{X})^4}{(\frac{1}{n}\sum_{j=1}^{n}(X_j-\bar{X})^2)^2} \xrightarrow{p}E(\dfrac{X-E(X)}{\sqrt{Var(X)}})^4
+\end{split}
+$$
+Do the simplify:
+$$
+\begin{split}
+& \dfrac{\frac{1}{n}\sum_{i=1}^{n}(X_i-\bar{X})^4}{(\frac{1}{n}\sum_{j=1}^{n}(X_j-\bar{X})^2)^2} = \frac{1}{n}\sum_{i=1}^{n}(\frac{nY_i^2}{\sum_{j=1}^{n}Y_j^2})^2 \\
+& ,\text{where }Y_i = X_i-\bar{X}
+\end{split}
+$$
+Thus,the MC estimator is 
+$$
+\hat{\theta} = \frac{1}{n}\sum_{i=1}^{n}(\frac{nY_i^2}{\sum_{j=1}^{n}Y_j^2})^2 =\frac{1}{n}\sum_{i=1}^{n} W_i
+$$
+,and the MC s.e is 
+$$
+\text{root}(\frac{1}{n(n-1)}\sum_{i=1}^{n}(W_i-\hat{\theta})^2)
+$$
+Set n=100000:
+```{r}
+set.seed(1)
+n = 100000
+mc_samples <- rweibull(n,shape = 1.5,scale = 1)
+mc_cent <- (mc_samples-mean(mc_samples))^2
+normalize_mc <- (n*mc_cent/(sum(mc_cent)))^2
+mc.mean <- mean(normalize_mc)
+mc.sd <- sqrt(var(normalize_mc)/n)
+kable(data.frame("mc.mean"=mc.mean,"mc.se"=mc.sd))
+```
+
+## (a1)
+Let $T(X) = X^3$,
+$$
+\begin{split}
+E(T(X)) &= \int_{0}^{\infty}{T(x)\times f(x)dx} \\
+&= \int_{1}^{0} T(x)\times 1 (-du),\text{let }u=\exp(-x^{1.5}),du=-f(x)dx \\
+&=E_U(T((\ln(1/U))^{1/1.5})),U \sim U(0,1).
+\end{split}
+$$
+Then,applied Monte Carlo estimator,
+$$
+\text{The estimator of this expectation is }\hat{\theta}= \dfrac{1}{n}\sum_{i=1}^{n}(\ln(1/U_i))^{2},U_i \overset{i.i.d}{\sim}U(0,1).
+$$
+and its s.e.,
+$$
+\text{root }(\dfrac{1}{n(n-1)}\sum_{i=1}^{n}((\ln{1/U_i})^{2}-\hat{\theta})^2)
+$$
+```{r}
+set.seed(2)
+n = 100000
+mc_samples <- 0
+for (i in 1:n){
+  u <- runif(n=1)
+  mc_samples[i] <- (log(1/u))^2
+}
+mc_mean <- mean(mc_samples)
+mc_sd  <- sqrt(var(mc_samples)/n)
+kable(data.frame("mc.mean"=mc_mean,"mc.se"=mc_sd))
+```
+
+## (b)
+Let $l(x;\theta) = \log{f(x;\theta)}$,
+$$
+\begin{split}
+& \dfrac{\partial^2 l}{\partial \alpha^2}|_{(\alpha=1,\beta=1.5)} = 1.5[2.5 x^{1.5}-1] \\
+& \dfrac{\partial^2 l}{\partial \beta^2}|_{(\alpha=1,\beta=1.5)} = -[1/1.5^2+x^{1.5}(\log{x})^2] \\
+& \dfrac{\partial^2 l}{\partial \beta \partial \alpha}|_{(\alpha=1,\beta=1.5)} =\dfrac{\partial^2 l}{\partial \alpha \partial \beta}|_{(\alpha=1,\beta=1.5)} = -[1-x^{1.5}-1.5x^{1.5}\log{x}] 
+\end{split}
+$$
+接著，利用 (a1) 的概念分別估計這三個的 Monte Carlo estimation(Fisher information 記得加上負號):  
+```{r}
+set.seed(3)
+n = 100000
+mc_samples11 <- 0
+mc_samples12 <- 0
+mc_samples22 <- 0
+for (i in 1:n){
+  u <- (log(1/runif(n = 1)))^(1/1.5)
+  mc_samples11[i] <- -(1.5-1.5*2.5*u^(1.5))
+  mc_samples12[i] <- 1-u^1.5-1.5*u^1.5*log(u)
+  mc_samples22[i] <- 1/1.5^2+u^1.5*(log(u))^2
+}
+Fisher_11 <- mean(mc_samples11)
+Fisher_12 <- Fisher_21 <- mean(mc_samples12)
+Fisher_22 <- mean(mc_samples22)
+sd_11 <- sqrt(var(mc_samples11)/n)
+sd_12 <- sd_21 <- sqrt(var(mc_samples12)/n)
+sd_22 <- sqrt(var(mc_samples22)/n)
+mc_Fisher_matrix <- matrix(c(Fisher_11,Fisher_21,Fisher_12,Fisher_22),2,2)
+mc_Fisher_sd <- matrix(c(sd_11,sd_21,sd_12,sd_22),2,2)
+```
+* M.C. Fisher information matrix:
+```{r}
+kable(mc_Fisher_matrix)
+```
+* M.C. s.e. :
+```{r}
+kable(mc_Fisher_sd)
+```
+
+## (c)
+I choose the proposal 2+Exp(1) distribution:
+$$
+\begin{split}
+E(X|X>2) &= \int_{2}^{\infty}xf(x)dx = \int_{2}^{\infty}[xf(x)/h(x)]h(x)dx \\
+&=\int_{2}^{\infty}[yf(y)/h(y)]h(y)dy \\
+&= E_Y[Y\dfrac{f(Y)}{h(Y)}],\text{where } Y \sim h(.):\text{the p.d.f. of 2+Exp(1)}
+\end{split}
+$$
+```{r}
+set.seed(4)
+a=2
+y = a+rexp(n = 100000,rate = 1)
+weight = dweibull(y,1.5,1)/dexp(y-a,rate = 1)
+mc_samples = y*weight
+kable(data.frame("mc.mean"=mean(mc_samples),"mc.se"=sqrt(var(mc_samples)/n)))
+```
+
+另外，使用 identical function $I_{(X_i>2)}$，得到 M.C. estimation，與 importance sampling method 做個比較:  
+$$
+\hat{E}(X|X>2) = \dfrac{1}{n}\sum_{i=1}^{n}{I_{(X_i>2)}X_i}
+$$
+```{r}
+set.seed(5)
+x <- rweibull(n = 100000,shape = 1.5,scale = 1)
+ident <- as.numeric(x>2)
+kable(data.frame("mc.mean"=mean(x*ident),"mc.se"=sqrt(var(x*ident)/n)))
+```
+Accroding to the comparison between MC s.e.,MC estimator by importance sampling method is better.
+
+# 2.
+## (a)
+The joint pdf f(x,y) is derived by $\frac{\partial F(x,y) }{\partial x \partial y}$.
+$$
+\begin{split}
+& \frac{\partial F(x,y)}{\partial x} =F(x,y)\times[\frac{1}{x^2}(\Phi\{u(x,y)\}+\phi\{u(x,y)\})-\frac{1}{xy}\phi(1-u(x,y))] \\
+&,\text{where }u(x,y)=\frac{1}{2}-\log{(x/y)}. \\
+& \frac{\partial F(x,y)}{\partial y} = F(x,y)\times[\frac{1}{y^2}(\Phi\{1-u(x,y)\}+\phi\{1-u(x,y)\})-\frac{1}{xy}\phi(u(x,y))] \\
+& \text{By the above,we have } \\
+& \frac{\partial^2 F(x,y)}{\partial x\partial y} = \frac{F(x,y)}{xy}[\underline{(\frac{1}{x}(\Phi{\{u\}}+\phi{\{u\}})-\frac{1}{y}\phi{\{1-u\}}})(\underline{\frac{1}{y}(\Phi{\{1-u\}}+\phi{\{1-u\}})-\frac{1}{x}\phi{\{u\}}} \\
+&+\underline{\frac{1}{x}(1-u)\phi{\{u\}} +\frac{1}{y}u\phi{\{1-u\}}}] \\
+& \overset{\underset{\mathrm{simplify}}{}}{=} \frac{F(x,y)}{xy}[k_1(x,y)k_2(x,y)+k_3(x,y)] ,\text{where }k_1,k_2,k_3 \ \text{are the corresponding bottom lines above.} \\
+& = f(x,y):\text{joint p.d.f },x,y>0
+\end{split}
+$$
+Next,draw the density plot and contour plot:
+```{r}
+f <- function(x){
+  u <- 1/2-log(x[1]/x[2])
+  V <- 1/x[1]*pnorm(u)+1/x[2]*pnorm(1-u)
+  F_cdf <- exp(-V)
+  k1 <- 1/x[1]*(pnorm(u)+dnorm(u))-1/x[2]*dnorm(1-u)
+  k2 <- 1/x[2]*(pnorm(1-u)+dnorm(1-u))-1/x[1]*dnorm(u)
+  k3 <- 1/x[1]*((1-u)*dnorm(u))+1/x[2]*(u*dnorm(1-u))
+  k <- k1*k2+k3
+  return(F_cdf*k/(x[1]*x[2]))
+} # joint pdf
+grid1 <- seq(0.1,10,length=50)
+xy = expand.grid(x=grid1, y=grid1)
+z = apply(xy,1,f)
+
+par(mfcol=c(1,2))
+persp(grid1, grid1, matrix(z,50,50), theta= -160,
+      zlab="f(x,y)", xlab="x", ylab="y",cex.lab=2)
+contour(grid1, grid1, matrix(z,50,50), levels= round(quantile(z, 0.04*(1:25)),3), 
+        xlab="x", ylab="y", cex.lab=1.5)
+```
+As we see,the density is larger when (x,y) is close to (0,0).
+Next,I choose the Exp(rate=1) as the proposal distribution:
+
+* Alogrithm(MH,independent sampler):
+1. Set the jump proposal:Exp(1)
+2. For t=1,2,...,$(x^{(0)}=0.5,y^{(0)}=0.5)$  
+(2a) draw $x^{*} \sim Exp(1)$,its pdf is $q(x) =exp(-x),x>0$  
+(2b) calculate $r = \dfrac{f(x^{*})}{f(x^{(t-1)})}\dfrac{q(x^{(t-1)}}{q(x^{*})}$  
+(2c) set $x^{(t)} = x^{*}$ with probability min{1,r},otherwise $x^{(t-1)}$.
+3. Repeat step 1,2 until n.iter=10000 pairs of samples (x,y) are generated.
+```{r}
+#proposal:exp(rate=1)
+MH1 <- function(init, n.iter){
+  xx <- matrix(0,n.iter,2) 
+  count <- 0
+  xx[1,] <- init
+  joint_exp <- function(uv){dexp(uv[1],rate = 1)*dexp(uv[2],rate = 1)}
+  for (i in 2:n.iter){
+    uv <- rexp(2,rate = 1)
+    r <- (f(uv)/f(xx[i-1,]))*(joint_exp(xx[i-1,])/joint_exp(uv))
+    U <- runif(1)
+    if (U< min(r,1)) {
+      xx[i,] <- uv
+      count <- count +1
+    }
+    else {xx[i,] <- xx[i-1,]}
+  }
+  return(list(mc=xx, r.mean=count/n.iter))
+}
+```
+```{r}
+set.seed(1019)
+mc1<- MH1(c(0.5,0.5),10000)
+cat("Acceptance rate:",mc1$r.mean)
+```
+
+* Check series:
+```{r}
+ts.plot(mc1$mc[1:1000,1:2], col=1:2) 
+```
+From the above, observe the first 1000 iteration, I think that the chains tend to a fairly stable structure after 1000.So,select the last 1000 pair samples (X,Y):
+```{r}
+new_mc1 <- mc1$mc[9001:10000,]
+```
+
+Next,let's see the marginal historgram of new_mc1:
+```{r}
+par(mfcol=c(1,2))
+hist(new_mc1[,1],freq = F,main="Marginal X",
+     xlab = "x")
+hist(new_mc1[,2],freq = F,main="Marginal Y",
+     xlab = "y")
+```
+As we expected,the margin density of both are large when it is close to 0.
+
+* Scatter plot:
+```{r}
+plot(new_mc1[,1], new_mc1[,2],
+     pch=19, col=4, cex=0.5,
+     xlab="MH.x",ylab="MH.y")
+```
+As we see,this scatter plot is similar to the population plot.
+
+## (b)
+Accroding to hint,we should obtain the MC estimator of $E(h(X,Y))$ by using the 1000 samples of (X,Y) from 2.(a): 
+```{r}
+mc.samples <- 0
+x <- new_mc1[,1]
+y <- new_mc1[,2]
+for (i in 1:1000){
+  if ({y[i] <= 5-x[i]} & {x[i] <5}){
+    mc.samples[i] <- 1
+  }
+  else{
+    mc.samples[i] <- 0
+  }
+}
+mc.mean <- mean(mc.samples)
+mc.se <- sqrt(var(mc.samples)/1000)
+kable(data.frame("mc.mean"=mc.mean,"mc.se"=mc.se))
+```
+From the above,we obtain the MC estimation of $E(h(X,Y))$ is $1-\hat{\tau}=0.8$ with $\text{M.C. s.e.}(\hat{\tau})=0.0126554$.
+Thus,the desired probability is estimated to be :
+```{r}
+kable(1-mc.mean,col.names = "")
+```
+
+
