@@ -1,0 +1,179 @@
+---
+title: "Applied Multivariate-HW5"
+author: 
+- 'ID : 111024517'
+- 'Name : 鄭家豪'
+date: due on 03/30
+geometry: left=3cm,right=3cm,top=2cm,bottom=2cm
+header-includes:
+  - \usepackage{leading}
+  - \leading{18pt}
+  - \usepackage{xeCJK}
+  - \setCJKmainfont{標楷體}
+  - \setCJKmonofont{標楷體}
+output:
+  pdf_document:
+    latex_engine: xelatex
+classoption: a4paper
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = FALSE,
+	warning = FALSE,
+	comment = ""
+)
+library(ggplot2)
+library(ggforce)
+library(ggrepel)
+library(ggfortify)
+library("readxl")
+```
+
+**The code for the results is attached to the Rmd flie**
+
+# 1.
+**Data Resource:**https://www.kaggle.com/datasets/hellbuoy/car-price-prediction  
+
+
+## (a)
+```{r include=FALSE}
+#reading data and select the conti variables
+data <- read.csv("CarPrice.csv", header = TRUE)
+index_conti <- c("wheelbase", "carlength", "carwidth",
+                 "carheight", "curbweight", "enginesize",
+                 "boreratio", "stroke","compressionratio",
+                 "horsepower", "peakrpm", "citympg", "highwaympg")
+data_conti <- data[,index_conti]
+```
+
+After standardizing each variable,each PC and the summary of PCA are the following:  
+```{r echo=FALSE}
+#scale and demo the summary of PCA
+scale.data <- scale(data_conti)
+pca <- prcomp(scale.data, scale. = FALSE)
+pca_coefficient <- round(pca$rotation,2)
+pca_coefficient[abs(pca_coefficient) < 0.01] <- ""
+pca_coefficient <- as.data.frame(pca_coefficient)
+pca_coefficient
+summary(pca)
+```
+
+The first row presents the standard deviation of each PC.  
+The second row presents the proportion of its explained variance.  
+And the last row shows the cumulative explained proportion.  
+
+## (b)
+```{r echo=FALSE, fig.height=4 ,fig.width=6}
+plot(pca, type="l", main="Scree plot",pch=16)
+```
+
+Observe the scree plot,the slopes after PC 3 does not decrease sharply .And see cumulative explained proportion from (a),PC1 PC2 PC3 have accumulated nearly 80% of the variation explained.  
+Thus,the proper number is 3.  
+To interpret the PCs, we can examine the variables with high positive or negative loadings (i.e.relatively larger |coefficient|) for each PC. These variables represent the features of the data that contribute the most to that PC.  
+
+## (c)
+I calculate the mahalanobis distances of all observations,and calculate the total number of distances less than 25.
+```{r echo=FALSE}
+center <- colMeans(scale.data)
+cov <- cov(scale.data)
+mahal_dist <- mahalanobis(scale.data, center, cov)
+selected_samples <- data_conti[mahal_dist <= 5^2, ]
+cat("The proportion :",length(selected_samples[,1])/205)
+```
+
+## (d)
+Here I draw the contour and the ellipse of $(v_j-\bar{v})'\Lambda^{-1}(v_j-\bar{v})$, as well as highlight the points selected in (c) with red and highlight the points not selected in (c) with blue.
+By the way,the demonstrating of contour plot is using the values of $(v_j-\bar{v})'\Lambda^{-1}(v_j-\bar{v})$.  
+```{r echo=FALSE}
+center_PC <- (center %*% pca$rotation)[1:2]
+cov_PC <- cov(pca$x[,1:2])
+PC <- pca$x[,1:2]
+mahal_PCdist <- mahalanobis(x=PC,center = center_PC,
+                            cov = cov_PC)
+in_ellipse <- as.numeric(mahal_dist<= 5^2)
+group <- as.factor(in_ellipse)
+PC_data <- data.frame(PC,group,mahal_PCdist)
+ggplot(data = PC_data , aes(x = PC1, y = PC2)) +
+  stat_density2d(aes(fill=mahal_PCdist),geom = "polygon",bins = 10,alpha = 0.4,color = "red") +
+  geom_point(aes(color = group),alpha = 0.9) +
+  geom_ellipse(aes(x0 = center_PC[1], y0 = center_PC[2],
+                   a = 5 * pca$sdev[1],
+                   b = 5 * pca$sdev[2],
+                   angle = 0),
+               fill = NA,color = "black") + 
+  scale_color_manual(values = c("blue","red")) + 
+  labs(title="Mahalanobis distance via PC1,PC2") 
+```
+
+The contour across PC1 PC2 dimensions is consistent,it suggests that the structure of the data is extremely well-captured by first two PC,although its Mahalanobis distance via PC1 PC2 is not well captured.  
+
+## (e)
+```{r echo=FALSE}
+cat("Cor(PC1,Price)=",cor(PC[,1],data$price))
+cat("\n")
+cat("Cor(PC2,Price)=",cor(PC[,2],data$price))
+```
+
+## (f)
+```{r echo=FALSE}
+autoplot(pca, data=data,colour="fuelsystem", loadings.label = TRUE,loadings=TRUE)
+```
+
+From the above results, different fuel systems show distinct patterns in the biplot. For example, the fuel system "idi" is mainly located at the lower end of PC2. Furthermore, when observing the vectors of the continuous variables, compressionratio and carheight have a larger proportion of explaining the variation in PC2. This implies that the fuel system "idi" is more affected by compressionratio and carheight. Similar patterns can be observed for other fuel systems, and the biplot can be used to interpret these results.
+
+# 2.
+```{r echo=FALSE}
+file_AB <- "2ab.jpg"
+knitr::include_graphics(file_AB)
+```
+```{r echo=FALSE}
+file_Ac <- "2c.jpg"
+knitr::include_graphics(file_Ac)
+```
+
+# 3.
+```{r include=FALSE}
+data <- read_excel("109080808_Data.xlsx")
+```
+
+```{r echo=FALSE}
+group <- aggregate(data[,6:16], 
+                   by=list(NBCStatus=data$`TNBC Status`,
+                           STAGE=data$STAGE,
+                           pCR=data$pCR),mean)
+rowname <- c("n1p","T1p","n2p","T2p","n3p","T3p","n4p","T4p","n1R","T1R","n2R","T2R","n3R","T3R","n4R","T4R")
+row.names(group) <- rowname
+cat("The mean expression profiles :(round to 3 decimals)\n")
+knitr::kable(round(group[,4:14],3))
+```
+The above is the mean express profiles,for simplicity,the values of table with dimesion 16x11 are rounded to the third decimal place.  
+Columns are 11 genes.  
+Rows are the combinations of TNBC Status, STAGE, and pCR:  
+
+* nip: (nonTNBC,Ti,pCR) , i=1,2,3,4.  
+* TiR: (TNBC,Ti,RD), i=1,2,3,4.  
+
+\newpage
+
+Next , the following is the distance matrix:  
+```{r echo=FALSE}
+cat("The distance matrix via 1-|correlation|:(round to 3 decimals)\n")
+dis_matrix <- 1-abs(cor(t(group[,4:14])))
+knitr::kable(round(dis_matrix,3))
+```
+Finally,use this matrix to conduct MDS:
+
+```{r echo=FALSE}
+cmd <- cmdscale(d=dis_matrix,k=2)
+labels <- rownames(cmd)
+colors <- c(rep("red", 8), rep("blue", length(labels)-8))
+plot(cmd,type="n",xlab = "Coordinate 1",ylab = "Coordinate 2")
+text(cmd, labels = labels,col = colors)
+legend("bottomright", 
+       legend = c("pCR", "RD"), 
+       col = c("red", "blue"), pch = 16, cex = 0.8)
+```
+
+
