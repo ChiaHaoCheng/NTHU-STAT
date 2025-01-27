@@ -1,0 +1,495 @@
+---
+title: "HW2-Linear model"
+author: 
+- 'ID : 111024517'
+- 'Name : 鄭家豪'
+date: due on 10/20 (Tue)
+header-includes:
+  - \usepackage{leading}
+  - \leading{18pt}
+  - \usepackage{xeCJK}
+  - \setCJKmainfont{標楷體}
+  - \setCJKmonofont{標楷體}
+output:
+  pdf_document:
+    latex_engine: xelatex
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### 1. 
+
+先讀取資料來檢查資料性質(這裡我採用讀取前10筆資料):  
+```{r include=FALSE}
+ex1_data <- read.table("http://www.stat.nthu.edu.tw/~swcheng/Teaching/stat5410/data/E2.8.txt"
+,header = TRUE)
+```
+```{r echo=FALSE}
+file <- "ex1_head_data.png"
+knitr::include_graphics(file)
+```
+  
+根據每個變數的值變動情況，每個變數皆可視為量化型變數。  
+
+\newpage
+
+## (a) 
+* Response variab: Output($Y$)
+* Explantary variables: SI($X_1$)、SP($X_2$)、I($X_3$)  
+Assumptions:  
+$Y_{i} = \beta_{0} + \beta_{1} X_1 + \beta_{2} X_2 + \beta_{3} X_3 + \epsilon_{i}$,where $E(\epsilon_{i}) = 0$ , $Var(\epsilon_{i}) = \sigma^2$ for i=1,2,...,17.  
+$Model \ matrix : \ X = [1,X_1,X_2,X_3]$  
+$Coefficient:  \beta = \  [\beta_0,\beta_1,\beta_2,\beta_3]$
+
+
+
+The Least square method : $\hat \beta = (X^TX)^{-1}X^TY$  
+```{r eval=FALSE}
+X <- data.matrix(cbind(rep(1,17),ex1_data[,2:4]))
+Y <- ex1_data[,1]
+round(solve(t(X) %*% X) %*% t(X) %*% Y,digits = 4)
+```
+
+計算以上算式，會得到$[6026.0607, 1.7422 ,5.3019,-255.5056]^T$ (round to 4 decimal places)  
+因此藉由Least squares，得到 $\hat Y = 6026.0607 + 1.7422X_1 +5.3019X_2-255.5056X_3$  
+
+## (b)  
+Denote $SI^2$ and $SP\times I$ be $X_4$ and $X_5$,respectively.  
+Assumptions:  
+$Y_{i} = \beta_{0} + \beta_{1} X_1 + \beta_{2} X_2 + \beta_{3} X_3 + \beta_{4} X_4+\beta_{5} X_5+\epsilon_{i}$  
+,where $E(\epsilon_{i}) = 0$ , $Var(\epsilon_{i}) = \sigma^2$ for i=1,2,...,17.  
+$Model \ matrix : \ X^{*} = [1,X_1,X_2,X_3,X_4,X_5]$  
+$Coefficient:  \beta^{*} = \  [\beta_0,\beta_1,\beta_2,\beta_3,\beta_4,\beta_5]$  
+一樣藉由Least square method，計算$\hat \beta^{*} = ((X^{*})^{T}X^{*})^{-1}(X^{*})^{T}Y$，  
+```{r eval=FALSE}
+X_star <- data.matrix(cbind(X,ex1_data[,2]^2,ex1_data[,3]*ex1_data[,4]))
+round(solve(t(X_star) %*% X_star) %*% t(X_star) %*% Y,digits = 4)
+```
+
+會得出$[52404.5295,35.1319,-13.7152,-3715.9028,-0.0145,1.0221]^T$ (round to 4 decimal places)  
+因此得到 $\hat Y = 52404.5295 + 35.1319X_1 -13.7152X_2-3715.9028X_3-0.0145X_4+1.0221X_5$.  
+\newpage  
+
+## (c)  
+由於 $X_4 = X_1^2$, $X_5=X_2*X_3$，  
+可將 Part(b) 的結果另為 $F(X_1,X_2,X_3)$ : the function of $(X_1,X_2,X_3)$。  
+因為解釋變數之間不相互影響，不過$X_5$是$X_2$和$X_3$的交互作用變數，所以可再將其拆成  
+$F(X_1,X_2,X_3)=F_{1}(X_1)+F_{2}(X_2,X_3)$  
+,where $F_{1}(X_1)=52404.5295 + 35.1319X_1-0.0145X_1^2$ ; $F_{2}(X_2,X_3) =-13.7152X_2-3715.9028X_3+1.0221X_2X_3$.  
+
+(i) 由於$F_1$是凹函數，所以由"Second derivative test"得知:  
+$\dfrac{d}{dx}F_1(x) = 0$  
+$\Rightarrow 35.1319-0.029x = 0$ $\Rightarrow x =1211.445$  
+考慮$SI$的資料範圍為[56,1754]，當$X_1=1211$時(因為$SI$皆為整數)，$F_1(X_1)$達至最大值 73684.71，這是合理的。  
+
+(ii) $F_2$是雙變數函數，由於 determinant of Hessian matrix <0 for all $X_2,X_3$ ，在找最大值時可考慮其邊界點。  
+所以這裡先觀察 $F_2$ 的 contour plot:  
+```{r echo=FALSE}
+F_2 = function(x){-13.7152*x[1]-3715.9028*x[2]+1.0221*x[1]*x[2]}
+z <-matrix(0,10,10) 
+X_2 <-seq(min(ex1_data$SP),max(ex1_data$SP),length=10) 
+X_3 <-seq(min(ex1_data$I),max(ex1_data$I),length=10)
+for(i in 1:10){
+  for(j in 1:10){z[i,j]=F_2(c(X_2[i],X_3[j]))}
+} 
+contour(X_2,X_3,z,xlab="SP",ylab="I",col = "red")
+
+```
+
+這裡可以觀察到， (i) SP 極大且 I 相對極大 或 (ii) SP 極小且 I 相對極小時，$F_2$可以達至最大。  
+For case (i)，我使用R語言的"optim"指令來解最大值(初始值分別設定為$SP=P_{90}=3938$(90-th percentile)和$I=P_{90}=25.944$)。
+```{r eval=FALSE}
+F_2=function(x){-(-13.7152*x[1]-3715.9028*x[2]+1.0221*x[1]*x[2])}
+optim(c(3938,25.944),fn = F_2,method = 'L-BFGS-B',lower = c(840,10.54),upper = c(4240,29.19))
+```
+```{r echo=FALSE}
+file <- "ex1_c(i).png"
+knitr::include_graphics(file)
+```
+  
+**NOTE: R語言的 optim 指令為求解函數最小值，因此使用指令時要在函數前多個負號。**  
+For case (ii)，初始值分別設定為$SP=P_{10}=2178$和$I=P_{10}=10.958$:  
+```{r eval=FALSE}
+optim(c(2178,10.958),fn = F_2,method = 'L-BFGS-B',lower = c(840,10.54),upper = c(4240,29.19))
+```
+```{r echo=FALSE}
+file <- "ex1_c(ii).png"
+knitr::include_graphics(file)
+```
+  
+由上述結果，我們得知 $SP=4240$ , $I = 29.19$可以得到 $F_2$ 的最大值 $F_2(4240,29.19)=-40118.83$。  
+因此，the maximum of $\hat Y = 52404.5295 + 35.1319X_1 -13.7152X_2-3715.9028X_3-0.0145X_4+1.0221X_5$   
+is $73684.71 - 40118.83 = 33565.88$ at $(SI,SP,I) = (1211,4240,29.19)$。  
+\newpage
+
+### 2. 
+* 讀取資料  
+```{r}
+ex2_data <- read.table("http://www.stat.nthu.edu.tw/~swcheng/Teaching/stat5410/data/prostate.txt"
+,header = TRUE)
+```
+Denote these variables as the following:  
+* Response variabe: lpsa($Y$)  
+* Explantary variables: lcavol($X_1$)、lweight($X_2$)、age($X_3$)、lbph($X_4$)、svi($X_5$)、lcp($X_6$)、gleason($X_7$)、pgg45($X_8$)  
+
+## (a)  
+```{r echo=TRUE}
+a_fit <- lm(lpsa ~ lcavol,data = ex2_data)
+```
+```{r echo=FALSE}
+result <- c(as.numeric(a_fit$coefficients),summary(a_fit)$r.squared,summary(a_fit)$sigma)
+d <- cbind("beta0"=result[1],"beta1"=result[2],
+           "R squard"= result[3], "Residual s.d." = result[4])
+knitr::kable(d)
+```
+
+  
+## (b)  
+Model adding lweight($X_2$): $Y_i=\beta_0+\beta_1X_1+\beta_2X_2+\epsilon_i$,i=1,2,...,97.  
+```{r include=FALSE}
+r_squared_trend <- c()
+se_trend <- c()
+```
+```{r}
+b1_fit <- lm(lpsa ~ lcavol + lweight,data = ex2_data)
+```
+```{r echo=FALSE}
+result <- c(as.numeric(b1_fit$coefficients),summary(b1_fit)$r.squared,summary(b1_fit)$sigma)
+d <- cbind("beta0"=result[1],"beta1"=result[2],
+           "beta2"=result[3],"R squard"= result[4], 
+           "Residual s.d." = result[5])
+knitr::kable(d)
+```
+
+\newpage  
+Model adding lweight($X_2$) and svi($X_5$): $Y_i=\beta_0+\beta_1X_1+\beta_2X_2+\beta_5X_5+\epsilon_i$,i=1,2,...,97.  
+```{r include=FALSE}
+r_squared_trend <- c(r_squared_trend,summary(b1_fit)$r.squared)
+se_trend <- c(se_trend,summary(b1_fit)$sigma)
+```
+```{r echo=TRUE}
+b2_fit <- lm(lpsa ~ lcavol + lweight + svi,data = ex2_data)
+```
+```{r echo=FALSE}
+result <- c(as.numeric(b2_fit$coefficients),summary(b2_fit)$r.squared,summary(b2_fit)$sigma)
+d <- cbind("beta0"=result[1],"beta1"=result[2],"beta2"=result[3],"beta5"=result[4],
+           "R squard"= result[5], "Residual s.d." = result[6])
+knitr::kable(d)
+```
+
+Model adding lweight ,svi, lbph($X_4$) and svi($X_5$):$Y_i=\beta_0+\beta_1X_1+\beta_2X_2+\beta_4X_4+\beta_5X_5+\epsilon_i$,i=1,2,...,97.  
+```{r include=FALSE}
+r_squared_trend <- c(r_squared_trend,summary(b2_fit)$r.squared)
+se_trend <- c(se_trend,summary(b2_fit)$sigma)
+```
+```{r echo=TRUE}
+b3_fit <- lm(lpsa ~ lcavol + lweight + lbph + svi,data = ex2_data)
+```
+```{r echo=FALSE}
+result <- c(as.numeric(b3_fit$coefficients),summary(b3_fit)$r.squared,summary(b3_fit)$sigma)
+d <- cbind("beta0"=result[1],"beta1"=result[2],
+           "beta2"=result[3],"beta4"=result[4],"beta5"=result[5],
+           "R squard"= result[6], "Residual s.d." = result[7])
+knitr::kable(d)
+```
+
+Model adding lweight ,svi ,lbph and age($X_3$):  
+$Y_i=\beta_0+\beta_1X_1+\beta_2X_2+\beta_3X_3+\beta_4X_4+\beta_5X_5+\epsilon_i$,i=1,2,...,97.  
+```{r include=FALSE}
+r_squared_trend <- c(r_squared_trend,summary(b3_fit)$r.squared)
+se_trend <- c(se_trend,summary(b3_fit)$sigma)
+```
+```{r echo=TRUE}
+b4_fit <- lm(lpsa ~ lcavol + lweight + age + lbph + svi,data = ex2_data)
+```
+```{r echo=FALSE}
+result <- c(as.numeric(b4_fit$coefficients),summary(b4_fit)$r.squared,summary(b4_fit)$sigma)
+d <- cbind("beta0"=result[1],"beta1"=result[2],"beta2"=result[3],"beta3"=result[4],"beta4"=result[5],
+           "beta5"=result[6],"R squard"= result[7], "Residual s.d." = result[8])
+knitr::kable(d)
+```
+  
+Model adding lweight ,svi ,lbph, age and lcp($X_6$):  
+$Y_i=\beta_0+\beta_1X_1+\beta_2X_2+\beta_3X_3+\beta_4X_4+\beta_5X_5+\beta_6X_6+\epsilon_i$,i=1,2,...,97.  
+```{r include=FALSE}
+r_squared_trend <- c(r_squared_trend,summary(b4_fit)$r.squared)
+se_trend <- c(se_trend,summary(b4_fit)$sigma)
+```
+```{r echo=TRUE}
+b5_fit <- lm(lpsa ~ lcavol + lweight + age + lbph + svi +lcp,data = ex2_data)
+```
+```{r echo=FALSE}
+result <- c(as.numeric(b5_fit$coefficients),summary(b5_fit)$r.squared,summary(b5_fit)$sigma)
+d1 <- cbind("beta0"=result[1],"beta1"=result[2],
+            "beta2"=result[3],"beta3"=result[4],
+            "beta4"=result[5])
+knitr::kable(d1)
+```
+```{r echo=FALSE}
+d2 <- cbind("beta5"=result[6],"beta6"=result[7],
+           "R squard"= result[8], "Residual s.d." = result[9])
+knitr::kable(d2)
+```
+\newpage
+Model adding lweight ,svi ,lbph, age,lcp and pgg45($X_8$):  
+$Y_i=\beta_0+\beta_1X_1+\beta_2X_2+\beta_3X_3+\beta_4X_4+\beta_5X_5+\beta_6X_6+\beta_8X_8+\epsilon_i$,i=1,2,...,97.   
+```{r include=FALSE}
+r_squared_trend <- c(r_squared_trend,summary(b5_fit)$r.squared)
+se_trend <- c(se_trend,summary(b5_fit)$sigma)
+```
+```{r echo=TRUE}
+b6_fit <- lm(lpsa ~ lcavol + lweight + age + lbph + svi +lcp+pgg45,data = ex2_data)
+```
+```{r echo=FALSE}
+result <- c(as.numeric(b6_fit$coefficients),summary(b6_fit)$r.squared,summary(b6_fit)$sigma)
+d1 <- cbind("beta0"=result[1],"beta1"=result[2],"beta2"=result[3],
+            "beta3"=result[4],"beta4"=result[5])
+knitr::kable(d1)
+```
+```{r echo=FALSE}
+d2 <- cbind("beta5"=result[6],"beta6"=result[7],
+           "beta8"=result[8],"R squard"= result[9], "Residual s.d." = result[10])
+knitr::kable(d2)
+```
+
+
+Model adding all explantary variables:  
+$Y_i=\beta_0+\beta_1X_1+\beta_2X_2+\beta_3X_3+\beta_4X_4+\beta_5X_5+\beta_6X_6+\beta_7X_7+\beta_8X_8+\epsilon_i$,i=1,2,...,97.   
+```{r include=FALSE}
+r_squared_trend <- c(r_squared_trend,summary(b6_fit)$r.squared)
+se_trend <- c(se_trend,summary(b6_fit)$sigma)
+```
+```{r echo=TRUE}
+b7_fit <- lm(lpsa ~ . ,data = ex2_data)
+```
+```{r echo=FALSE}
+result <- c(as.numeric(b7_fit$coefficients),summary(b7_fit)$r.squared,summary(b7_fit)$sigma)
+d1 <- cbind("beta0"=result[1],"beta1"=result[2],
+           "beta2"=result[3],"beta3"=result[4],
+           "beta4"=result[5],"beta5"=result[6])
+knitr::kable(d1)
+```
+```{r echo=FALSE}
+d2<-cbind("beta6"=result[7],"beta7"=result[8],"beta8"=result[9],
+           "R squard"= result[10], "Residual s.d." = result[11])
+knitr::kable(d2)
+```
+
+
+```{r include=FALSE}
+r_squared_trend <- c(r_squared_trend, summary(b7_fit)$r.squared)
+se_trend <- c(se_trend, summary(b7_fit)$sigma)
+```
+
+\newpage  
+接著把前面計算的 $R^2$ 與 residual s.d. 值繪製成折線圖  
+```{r echo=FALSE, fig.height=3, fig.width=5}
+plot(r_squared_trend,type = "b",main="R Squared trend",  xlab ="model",ylab="R squared",pch=19)
+```
+
+```{r ,fig.width=5, fig.height=3 ,echo=FALSE}
+plot(se_trend,type = "b", main="Residual standard error Trend", xlab ="model",ylab="Standard error",pch=19)
+```
+\newpage  
+由以上的趨勢圖，  
+可以發現part(a)的模型加進 lweight 和 svi 後的$R^2$值，比單純加 lweight 有明顯的提升，且residaual standard error 有明顯的降低。  
+後續加入其他變數，雖然一定不會降低前一個model的$R^2$值，但增加的幅度沒有比從 1 -> 2 還要多。  
+以及 residaual standard error 在 2 之後變化幅度不大。  
+推測出 lweight 和 svi 同時考慮時，與 lpsa 的變化與解釋性是較顯著相關的。  
+
+
+## (c)  
+
+```{r fig.width=6, fig.height=4,echo=FALSE}
+plot(x=ex2_data$lcavol,y=ex2_data$lpsa, type='p',col="black", main="lpsa vs. lcavol", xlab="lcavol", ylab="lpsa")
+c1_fit <- lm(lpsa ~ lcavol, data = ex2_data)
+abline(c1_fit, col='blue')
+c2_fit <- lm(lcavol ~ lpsa, data=ex2_data)
+abline(a = -c2_fit$coefficient[1]/c2_fit$coefficient[2],b = 1/c2_fit$coefficient[2], col='red')
+```
+  
+藍線: the fitted line of simple regression of lpsa on lcavol,$\hat Y = 1.5072979 + 0.7193201 X_1$   
+紅線: the fitted line of simple regression of lcavol on lpsa,$\hat X_1 = -0.5085802 + 0.7499191 Y$    
+這裡要注意的是，因為 fitted line of lcavol on lpsa 是以 lcavol 作為反應變數，所以紅線需要做線性轉換才能呈現出來。亦即:  
+$\hat X_1 = \hat\beta_0 + \hat \beta_1 Y$  
+$\Rightarrow Y = -\dfrac{\hat\beta_0}{\hat \beta_1} + \dfrac{1}{\hat \beta_1} \hat X_1$  
+$\Rightarrow Y = 0.67818  + 1.333477 \hat X_1$  
+這裡可以觀察到，兩條線有一交點。  
+因為$\overline Y = \hat \beta_0 + \hat \beta_1 \overline X$的性質，不失一般性，紅線也會通過 $(\overline X,\overline Y)$，因此交點為$(\overline X_{1},\overline Y) = (1.35001,2.478387)$。  
+
+\newpage  
+
+### 3.  
+* 事前工作:將資料轉成可讀取的形式  
+```{r echo=FALSE}
+file <- "ex3 data advised.png"
+knitr::include_graphics(file)
+```
+
+* 讀取資料:  
+```{r read data skill (1) , eval=FALSE, include=FALSE}
+# install.packages("magrittr") 
+library(magrittr)
+data3<- read.csv("http://www.stat.nthu.edu.tw/~swcheng/Teaching/stat5410/data/E2.9.txt", header = T)
+data3 <- sapply(data3[-17,], function(x){strsplit(x,split =" ")})
+data3 <- data3 %>% lapply(function(x){x[x != ""]})
+x <- data3[-1] %>% lapply( as.numeric) %>% rbind.data.frame() %>% t() %>% `dimnames<-`(list(1:15,1:10))
+data3 <- cbind(rep(x[,1], 3), rbind(x[,3*1:3-1], x[,3*1:3], x[,3*1:3+1]))
+economic_sectors <- c(rep(20,15),rep(36,15),rep(37,15))
+data3 <- cbind(data3,economic_sectors) %>% as.data.frame()
+colnames(data3)=c("year","capital","labor","real_value","economic_sectors")
+```
+```{r read data skill (2) ,  eval=FALSE, include=FALSE}
+library(data.table)  #install data.table
+colname <- c("Year","C:20","C:36","C:37","L:20","L:36","L:37","R:20","R:36","R:37")
+data3 <- fread("http://www.stat.nthu.edu.tw/~swcheng/Teaching/stat5410/data/E2.9.txt",col.names = colname)
+```
+
+```{r}
+ex3_data <- read.table("ex3.txt",header = TRUE)
+```
+接著把不同部門的相同變數合併成同一欄(column)  
+```{r}
+YEAR <- rep(ex3_data[,1],3)
+Capital <- c(ex3_data[,2],ex3_data[,3],ex3_data[,4])
+Labor <- c(ex3_data[,5],ex3_data[,6],ex3_data[,7])
+RealValueAdded <-c(ex3_data[,8],ex3_data[,9],ex3_data[,10])
+Sector <- c(rep("Food and kindred products (20)",15),
+            rep("electrical and electronic machinery, equipment and supplies (36)",15),
+            rep("transportation equipment (37)",15))
+ex3_data <- data.frame(
+  "YEAR" = YEAR,"Capital"=Capital,"Labor"=Labor,
+  "RealValueAdded"=RealValueAdded,
+  "Sector" = Sector
+)
+```
+
+
+調整完的資料會變成以下(取前6筆):  
+```{r eval=FALSE, include=FALSE}
+head(ex3_data)
+```
+```{r echo=FALSE}
+file <- "ex3 data combined.png"
+knitr::include_graphics(file)
+```
+
+## (a)  
+$V_t = \alpha K_t^{\beta_1} L_t^{\beta_2} \epsilon_t$  
+$\Rightarrow log(V_t) = log(\alpha K_t^{\beta_1} L_t^{\beta_2} \epsilon_t)=log(\alpha)+\beta_1 log(K_t) + \beta_2 log(L_t) + log(\epsilon_t)$  
+這裡發現，將其模型取log後，就變成是一個線性模型，其變數為:  
+* Response : $log(V_t)$  
+* Explantary : $log(K_t)$、$log(L_t)$  
+* constant : $log(\alpha)$  
+* error : $log(\epsilon_t)$  
+```{r echo=TRUE}
+fit20 <- lm(log(RealValueAdded)~log(Capital)+log(Labor),
+            data = ex3_data,
+            subset = (Sector =="Food and kindred products (20)"))
+beta_20 <- fit20$coefficients[2:3]
+
+fit36 <- lm(log(RealValueAdded)~log(Capital)+log(Labor),
+            data = ex3_data,
+            subset = (Sector =="electrical and electronic machinery, equipment and supplies (36)"))
+beta_36 <- fit36$coefficients[2:3]
+
+fit37 <- lm(log(RealValueAdded)~log(Capital)+log(Labor),
+            data = ex3_data,
+            subset = (Sector =="transportation equipment (37)"))
+beta_37 <- fit37$coefficients[2:3]
+result_beta <- matrix(c(beta_20,beta_36,beta_37),ncol = 3)
+colnames(result_beta) <- c("Sector.20","Sector.36","Sector.37")
+rownames(result_beta) <- c("beta1","beta2")
+knitr::kable(result_beta)
+```
+
+\newpage  
+
+## (b)  
+Constraint : $\beta_1 + \beta_2 =1$  
+$log(V_t)=log(\alpha)+\beta_1log(K_t)+(1-\beta_1)log(L_t)+log(\epsilon_t)$  
+$\ \ \ \ \ =log(\alpha)+\beta_1(log(\dfrac{K_t}{L_t}))+log(L_t)+log(\epsilon_t)$  
+將 $log(\dfrac{K_t}{L_t})$當作解釋變數，以及 offset 為 $log(L_t)$。  
+```{r echo=TRUE}
+fit20 <- lm(log(RealValueAdded)~log(Capital/Labor),
+            data = ex3_data,
+            subset = (Sector =="Food and kindred products (20)"),
+            offset = log(Labor))
+beta_20 <- c(fit20$coefficients[2],1-fit20$coefficients[2])
+
+fit36 <- lm(log(RealValueAdded)~log(Capital/Labor),
+            data = ex3_data,
+            subset = (Sector =="electrical and electronic machinery, equipment and supplies (36)"),
+            offset = log(Labor))
+beta_36 <- c(fit36$coefficients[2],1-fit36$coefficients[2])
+
+fit37 <- lm(log(RealValueAdded)~log(Capital/Labor),
+            data = ex3_data,
+            subset = (Sector =="transportation equipment (37)"),
+            offset = log(Labor))
+beta_37 <- c(fit37$coefficients[2],1-fit37$coefficients[2])
+result_beta <- matrix(c(beta_20,beta_36,beta_37),ncol = 3)
+colnames(result_beta) <- c("Sector.20","Sector.36","Sector.37")
+rownames(result_beta) <- c("beta1","beta2")
+knitr::kable(result_beta)
+```
+
+  
+\newpage  
+
+## (c)  
+$log(V_t)=log(\alpha)+log(\gamma)t+\beta_1log(K_t)+\beta_2log(L_t)+log(\epsilon_t)$  
+將 YEAR 當作解釋變數考慮進來，意味著 Real value added 會隨著年份有所變動。  
+  
+```{r echo=TRUE}
+fit20 <- lm(log(RealValueAdded)~YEAR +log(Capital)+log(Labor),
+            data = ex3_data,
+            subset = (Sector =="Food and kindred products (20)"))
+beta_20 <- fit20$coefficients[3:4]
+
+fit36 <- lm(log(RealValueAdded)~YEAR +log(Capital)+log(Labor),
+            data = ex3_data,
+            subset = (Sector =="electrical and electronic machinery, equipment and supplies (36)"))
+beta_36 <- fit36$coefficients[3:4]
+
+fit37 <- lm(log(RealValueAdded)~YEAR +log(Capital)+log(Labor),
+            data = ex3_data,
+            subset = (Sector =="transportation equipment (37)"))
+beta_37 <- fit37$coefficients[3:4]
+result_beta <- matrix(c(beta_20,beta_36,beta_37),ncol = 3)
+colnames(result_beta) <- c("Sector.20","Sector.36","Sector.37")
+rownames(result_beta) <- c("beta1","beta2")
+knitr::kable(result_beta)
+```
+
+\newpage  
+
+## (d)  
+Constraint : $\beta_1 + \beta_2 =1$  
+$log(V_t)=log(\alpha)+log(\gamma)t+\beta_1log(K_t)+(1-\beta_1)log(L_t)+log(\epsilon_t)$  
+$=log(\alpha)+log(\gamma)t+\beta_1log(\dfrac{K_t}{L_t})+log(L_t)+log(\epsilon_t)$  
+將 $YEAR$ 和 $log(\dfrac{K_t}{L_t})$當作解釋變數，以及 offset 為 $log(L_t)$。  
+```{r echo=TRUE}
+fit20 <- lm(log(RealValueAdded)~YEAR +log(Capital/Labor),
+            data = ex3_data,
+            subset = (Sector =="Food and kindred products (20)"),offset = log(Labor))
+beta_20 <- c(fit20$coefficients[3],1-fit20$coefficients[3])
+
+fit36 <- lm(log(RealValueAdded)~YEAR +log(Capital/Labor),
+            data = ex3_data,
+            subset = (Sector =="electrical and electronic machinery, equipment and supplies (36)"),
+            offset = log(Labor))
+beta_36 <- c(fit36$coefficients[3],1-fit36$coefficients[3])
+
+fit37 <- lm(log(RealValueAdded)~YEAR +log(Capital/Labor),
+            data = ex3_data,
+            subset = (Sector =="transportation equipment (37)"),offset = log(Labor))
+beta_37 <- c(fit37$coefficients[3],1-fit37$coefficients[3])
+result_beta <- matrix(c(beta_20,beta_36,beta_37),ncol = 3)
+colnames(result_beta) <- c("Sector.20","Sector.36","Sector.37")
+rownames(result_beta) <- c("beta1","beta2")
+knitr::kable(result_beta)
+```
