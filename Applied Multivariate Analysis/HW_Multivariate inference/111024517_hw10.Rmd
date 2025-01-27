@@ -1,0 +1,146 @@
+---
+title: "Applied Multivariate analysis-HW10"
+author: 
+- 'ID : 111024517'
+- 'Name : 鄭家豪'
+geometry: left=3cm,right=3cm,top=2cm,bottom=2cm
+header-includes:
+  - \usepackage{leading}
+  - \leading{18pt}
+  - \usepackage{xeCJK}
+  - \setCJKmainfont{標楷體}
+  - \setCJKmonofont{標楷體}
+output:
+  pdf_document:
+    latex_engine: xelatex
+classoption: a4paper
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,comment = "")
+```
+
+# Problem 1
+```{r echo=FALSE, out.width="80%"}
+file_Ac <- "IMG_0193.jpg"
+knitr::include_graphics(file_Ac)
+```
+
+\newpage
+
+```{r echo=FALSE, out.width="80%"}
+file_Ac <- "IMG_0194.jpg"
+knitr::include_graphics(file_Ac)
+```
+
+
+
+
+# Problem 2
+## Pre-processing  
+先觀察這筆資料的 dimension，以及將 Species 的名稱改為比較簡要的名字:  
+```{r echo=FALSE}
+dataset <- read.csv("penguins_raw.csv")
+dataset$Species[dataset$Species == "Adelie Penguin (Pygoscelis adeliae)"] <- "Adelie"
+dataset$Species[dataset$Species == "Gentoo penguin (Pygoscelis papua)"] <- "Gentoo"
+dataset$Species[dataset$Species == "Chinstrap penguin (Pygoscelis antarctica)"] <- "Chinstrap"
+cat("The dimension of dataset:",dim(dataset),"\n")
+cat("The simple name for Species:",unique(dataset$Species),"\n")
+```
+
+這裡我們只考慮每個Species所對應的 variables:"Culmen Length", "Culmen Depth"。因此，只檢查這兩個變數的 NA 數量狀況:  
+```{r echo=FALSE}
+cat("The count of NA for Species:",sum(as.numeric(is.na(dataset$Species))),"\n")
+label <- which(is.na(dataset$Culmen.Length..mm.) | is.na(dataset$Culmen.Depth..mm.))
+cat("The observations with Length==NA or Depth==NA are",label,"\n")
+dataset <- dataset[-label,]
+```
+
+由以上的結果，移除第4和第272筆觀察樣本。
+
+## (a)
+移除第4和第272筆觀察樣本之後，畫出 scatter plot:  
+```{r echo=FALSE}
+data <- dataset[,c("Culmen.Length..mm.","Culmen.Depth..mm.","Species")]
+plot(x=data$Culmen.Length..mm.,y=data$Culmen.Depth..mm.,
+     xlab="Culmen.Length",ylab="Culmen.Depth",
+     xlim=c(min(data$Culmen.Length..mm.),max(data$Culmen.Length..mm.)+5),
+     pch=19,col = factor(data$Species))
+legend("bottomright",
+       legend = levels(factor(data$Species)),
+       pch = 19,
+       col = factor(levels(factor(data$Species))))
+```
+
+## (b)  
+這裡使用 Slide P.43~P.44 的介紹，劃出每個 Species 的 chi-square plot:  
+\newpage
+
+```{r include=FALSE}
+## for Adelie
+Adelie <- data[which(data$Species=="Adelie"),1:2]
+cov_Adelie <- cov(Adelie)
+center_Adelie <- colMeans(Adelie)
+maha_Adelie <- mahalanobis(Adelie,center =center_Adelie,cov = cov_Adelie)
+## for Chinstrap
+Chinstrap <- data[which(data$Species=="Chinstrap"),1:2]
+cov_Chinstrap <- cov(Chinstrap)
+center_Chinstrap <- colMeans(Chinstrap)
+maha_Chinstrap <- mahalanobis(Chinstrap,center =center_Chinstrap,cov = cov_Chinstrap)
+## for Gentoo
+Gentoo <- data[which(data$Species=="Gentoo"),1:2]
+cov_Gentoo <- cov(Gentoo)
+center_Gentoo <- colMeans(Gentoo)
+maha_Gentoo <- mahalanobis(Gentoo,center =center_Gentoo,cov = cov_Gentoo)
+```
+
+For Adelie,  
+```{r echo=FALSE}
+n= length(Adelie[,1])
+cat("The number of Adelie is",n,"\n")
+## step 1:arrage maha.dist
+step1 <- sort(maha_Adelie)
+## step 2:take sample quantile
+step2 <- qchisq(p = (1:n-0.5)/n,df = 2)
+## step 3 : plot step1 vs. step2
+plot(x=step1,y=step2,pch=19,
+     xlab="order maha.distance",ylab="quantile of chi-square",
+     main="Adelie chi-square plot")
+abline(a = 0,b = 1,col="red",lty=2)
+legend("bottomright","y=x",lty=2,col="red")
+```
+
+For Chinstrap,  
+```{r echo=FALSE}
+n= length(Chinstrap[,1])
+cat("The number of Chinstrap is",n,"\n")
+## step 1:arrage maha.dist
+step1 <- sort(maha_Chinstrap)
+## step 2:take sample quantile
+step2 <- qchisq(p = (1:n-0.5)/n,df = 2)
+## step 3 : plot step1 vs. step2
+plot(x=step1,y=step2,pch=19,
+     xlab="order maha.distance",ylab="quantile of chi-square",
+     main="Chinstrap chi-square plot")
+abline(a = 0,b = 1,col="red",lty=2)
+legend("bottomright","y=x",lty=2,col="red")
+```
+
+For Gentoo,  
+```{r echo=FALSE}
+n= length(Gentoo[,1])
+cat("The number of Gentoo is",n,"\n")
+## step 1:arrage maha.dist
+step1 <- sort(maha_Gentoo)
+## step 2:take sample quantile
+step2 <- qchisq(p = (1:n-0.5)/n,df = 2)
+## step 3 : plot step1 vs. step2
+plot(x=step1,y=step2,pch=19,
+     xlab="order maha.distance",ylab="quantile of chi-square",
+     main="Gentoo chi-square plot")
+abline(a = 0,b = 1,col="red",lty=2)
+legend("bottomright","y=x",lty=2,col="red")
+```
+
+由以上三張 chi-square plot，Species:Adelie 最適合用 Multivariate normal distribution 建模。對於Species:Gentoo，大部分的點都很貼近 y=x 的紅色虛線(除了有兩個很明顯偏離的點)，用 Multivariate normal distribution 建模應該也不會不合適。但是，對於Species:Chinstrap，會發現後面約有5個點明顯偏離y=x 的紅色虛線，即有 $5/68 \approx 7.353\%$ 比例的點是偏離 Multivariate normal distribution ，因此 Species:Chinstrap 可能不太適合用此 distribution 建模。
+
