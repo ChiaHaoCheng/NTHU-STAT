@@ -1,0 +1,120 @@
+---
+title: "Applied multivariate analysis-HW8"
+author: 
+- 'ID : 111024517'
+- 'Name : 鄭家豪'
+geometry: left=3cm,right=3cm,top=2cm,bottom=2cm
+header-includes:
+  - \usepackage{leading}
+  - \leading{18pt}
+  - \usepackage{xeCJK}
+  - \setCJKmainfont{標楷體}
+  - \setCJKmonofont{標楷體}
+output:
+  pdf_document:
+    latex_engine: xelatex
+classoption: a4paper
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,comment = "")
+```
+
+```{r include=FALSE}
+airline=read.csv(file="111024504-train.csv")
+airline <- na.omit(airline)
+airline14<- airline[,9:22]
+```
+
+# Problem 1
+## All the cumulative varaince explained
+
+展示指定方法的所有組合的cumulative varaince explained(3 factors):  
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(psych)
+library("GPArotation")
+## PC 
+pc_varimax <- principal(airline14, nfactors = 3, rotate = "varimax") 
+pc_quartimax <- principal(airline14, nfactors = 3, rotate = "quartimax") 
+
+## PF 
+pf_varimax <- fa(airline14, nfactors = 3, rotate = "varimax",fm="pa") 
+pf_quartimax <- fa(airline14, nfactors = 3, rotate = "quartimax",fm="pa") 
+
+## MLE 
+mle_varimax  <- fa(airline14, nfactors = 3, rotate = "varimax", fm = "ml") 
+mle_quartimax <- fa(airline14, nfactors = 3, rotate = "quartimax", fm = "ml") 
+```
+
+* PC method(rounding to 4 digits):  
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(knitr)
+library(tidyverse)
+library(kableExtra)
+PC_method <- data.frame(cbind(pc_varimax$Vaccounted[1:3,],
+                              pc_quartimax$Vaccounted[1:3,]))
+colnames(PC_method) <- c("F1","F2","F3","F1","F2","F3")
+kable(round(PC_method,4),row.names = TRUE, booktabs=TRUE) %>% 
+  kable_styling(latex_options = "hold_position") %>% 
+  add_header_above(c(" ","Varimax"=3, "Quartimax"=3))
+```
+
+
+* PF method(rounding to 4 digits):  
+
+```{r echo=FALSE}
+PF_method <- data.frame(cbind(pf_varimax$Vaccounted[1:3,],
+                              pf_quartimax$Vaccounted[1:3,]))
+colnames(PF_method) <- c("F1","F2","F3","F1","F2","F3")
+kable(round(PF_method,4),row.names = TRUE, booktabs=TRUE) %>% 
+  kable_styling(latex_options = "hold_position") %>% 
+  add_header_above(c(" ","Varimax"=3, "Quartimax"=3))
+```
+
+* MLE method(rounding to 4 digits):  
+
+```{r echo=FALSE}
+MLE_method <- data.frame(cbind(mle_varimax$Vaccounted[1:3,],
+                              mle_quartimax$Vaccounted[1:3,]))
+colnames(MLE_method) <- c("F1","F2","F3","F1","F2","F3")
+kable(round(MLE_method,4),row.names = TRUE, booktabs=TRUE) %>%
+  kable_styling(latex_options ="hold_position") %>% 
+  add_header_above(c(" ","Varimax"=3, "Quartimax"=3))
+```
+
+## (a)
+
+這裡我選取的是 PC method with varimax rotation ，以下是其loadings(空白處代表對應的 loading 值過小):  
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+pc_varimax$loadings
+```
+
+* Factors(RC1,RC3,RC2) 解釋:  
+1. RC1: loading值較大(以大於0.6為標準)的變數，分別是 Food.and.drink、Seat.comfort、Inflight.entertainment、Cleanliness，這些變數有機上搭乘體驗的涵義在，代表 RC1 是類似這種意義的 factor。  
+2. RC3: loading值較大的變數，分別是 On.board.service、Leg.room.service、Baggage.handling、Inflight.service，這些都是具有機上服務的變數，代表 RC3 是類似這種意義的 factor。  
+3. RC2: loading值較大的變數，分別是 Inflight.wifi.service、Departure.Arrival.time.convenient、Ease.of.Online.booking、Gate.location，這些變數有個共同性:便利性。代表 RC2 很有可能是便利相關意義的 factor。
+
+## (b)
+
+```{r echo=FALSE}
+scores1 <- pc_varimax$scores[, 1]
+scores2 <- pc_varimax$scores[, 2]
+gender <- as.factor(airline$Gender)
+colors <- c("red", "blue")
+plot(scores1, scores2, pch = 16, xlab = "Factor 1", ylab = "Factor 2",
+     col = colors[gender])
+legend("bottomleft", legend = levels(gender), col = colors, pch = 16)
+```
+
+從以上的圖，可能有幾個觀點:  
+
+1. 均衡性: Factor scores分佈均勻，可能表示樣本中的個體在這兩個factor(RC1,RC3)上的表現相對一致，以性別的角度來看，沒有明顯的差異。  
+2. 多樣性: 反映了樣本中的多樣性或變化程度，即用男女來區分不太能看出明確的分群，可能有其他的特徵在其中。  
+
+# Problem 2
+```{r echo=FALSE}
+file_Ac <- "pro2.jpg"
+knitr::include_graphics(file_Ac)
+```
+
