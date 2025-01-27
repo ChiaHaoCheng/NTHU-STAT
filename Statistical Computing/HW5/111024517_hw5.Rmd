@@ -1,0 +1,583 @@
+---
+title: "SC-HW5"
+author: 
+- 'ID : 111024517'
+- 'Name : 鄭家豪'
+geometry: left=3cm,right=3cm,top=2cm,bottom=2cm
+header-includes:
+  - \usepackage{leading}
+  - \leading{18pt}
+  - \usepackage{xeCJK}
+  - \setCJKmainfont{標楷體}
+  - \setCJKmonofont{標楷體}
+output:
+  pdf_document:
+    latex_engine: xelatex
+classoption: a4paper
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = FALSE,
+	warning = FALSE,
+	comment = ""
+)
+```
+
+# Problem 1
+
+Let $X_i$ and $Y_i$ be represented as eruptions and waiting observation obtained from R(**faithful**),i=1,2,..,n=272.  
+
+* Pairwise scatter plot:  
+```{r}
+data(faithful)
+pairs(faithful)
+```
+
+* Model:  
+
+$$
+(X_i,Y_i) \overset{\text{i.i.d.}}{\sim}\gamma N_2(\mu_{1},\Sigma_{1}) +(1-\gamma)N_2(\mu_{2},\Sigma_{2}),p_{i} \overset{\text{i.i.d.}}{\sim}Ber(\gamma).
+$$
+
+## (a)
+
+* EM algorithm:  
+
+1. Given initial:From the pairwise scatter plot,set  
+$$
+\mu^{(0)}_1 = (2,60),\mu_2^{(0)}=(4.5,80);\Sigma^{(0)}_1 = \Sigma^{(0)}_2 = I_2; p^{(0)} = 0.5.
+$$
+
+2. E-step:  
+Let $f(x,y;\mu,\Sigma)$ be the joint pdf,$\theta=(\mu_1,\Sigma_1,\mu_2,\Sigma_2,p)$,  
+$$
+\begin{split}
+Q(\theta|\hat{\theta}) &= \sum_{i=1}^{n}\{\hat{p_{i}}\log f(X_i,Y_i;\mu_{1},\Sigma_{1})+(1-\hat{p_{i}})\log f(X_i,Y_i;\mu_{2},\Sigma_{2})\} \\
+&+ \sum_{i=1}^{n}\{\hat{p_{i}}\log \gamma+(1-\hat{p_{i}})\log (1-\gamma)\},\text{where }\hat{p}_{i} = \dfrac{\gamma f(X_i,Y_i;\mu_{1},\Sigma_{1})}{\gamma f(X_i,Y_i;\mu_{1},\Sigma_{1})+(1-\gamma)f(X_i,Y_i;\mu_{x2},\Sigma_{2})}
+\end{split}
+$$
+
+3. M-step:  
+Updata $\theta$ via  
+$$
+\theta^{(t+1)} = \text{arg max}_{\theta} Q(\theta|\theta^{(t)})
+$$
+Refer to https://arxiv.org/pdf/1901.06708.pdf , the analytic form of $\theta$:  
+$$
+\begin{split}
+& \hat{\mu}_j = \dfrac{\hat{p_j}^T[X,Y]}{\sum_{i=1}^{n}\hat{p}_{ij}} \in \mathbb{R}^{2\times1},\hat{\Sigma}_j = \dfrac{[X-\hat{\mu}_{j1},Y-\hat{\mu}_{j2}]^T\text{diag}(\hat{p}_{ij})[X-\hat{\mu}_{j1},Y-\hat{\mu}_{j2}]}{\sum_{i=1}^{n}\hat{p}_{ij}} \in\mathbb{R}^{2\times2} \\
+& \hat{\gamma}_j = \dfrac{1}{n}\sum_{i=1}^{n}\hat{p}_{ij} , j=1,2.
+\end{split}
+$$
+4. Repeat 2 and 3 until $||\mu_1^{(t)}-\mu_1^{(t-1)}||_1 + ||\mu_2^{(t)}-\mu_2^{(t-1)}||_1< 10^{-6}$ and $||\gamma_1^{(t)}-\gamma_1^{(t-1)}||_1 \leq 10^{-9}$.  
+
+```{r}
+fmul <- function(mu,sigma2,xvec){
+  det <- det(sigma2)
+  d = length(xvec)
+  maha <- (xvec-mu) %*% solve(sigma2) %*% t(xvec-mu)
+  ((2*pi)^d*det)^(-1/2)*exp(-maha/2)
+} #joint pdf
+mu1 <- mu1.all <- t(c(2,60));mu2 <- mu2.all <- t(c(4.5,80))
+sigma2.1 <- sigma2.2 <-diag(c(1,1)) 
+error <-err.all<- c(1,1) 
+p.all <- p <- 0.5
+n= dim(faithful)[1]
+count = 1
+X <- as.matrix(faithful)
+while(error[1]>=10^(-6) | error[2]>=10^(-9)){
+  # E-step
+  r <- numeric(n) #membership
+  for(i in 1:n){
+    tot <- p*fmul(mu1,sigma2.1,X[i,])+(1-p)*fmul(mu2,sigma2.2,X[i,])
+    r[i] <- p*fmul(mu1,sigma2.1,X[i,])/tot #rhat
+  }
+  # M-step
+  mu1.t <- (r%*%X)/sum(r) ; mu2.t <- ((1-r)%*%X)/sum(1-r) 
+  sigma21.t <- t(X- rep(1,n) %*% mu1.t) %*% diag(r) %*% (X- rep(1,n) %*% mu1.t)/sum(r) 
+  sigma22.t <- t(X- rep(1,n) %*% mu2.t) %*% diag(1-r) %*% (X- rep(1,n) %*% mu2.t)/sum(1-r)
+  p1 <- sum(r)/n
+  # stop criterion
+  error[1] <- sum(abs(mu1-mu1.t)) + sum(abs(mu2-mu2.t))
+  error[2] <- abs(p1-p)
+  # update  
+  mu1.all <-rbind(mu1.all,mu1.t)
+  mu2.all <-rbind(mu2.all,mu2.t)
+  p.all <-c(p.all,p1)
+  mu1 <- mu1.t ; mu2 <-mu2.t
+  sigma2.1 <- sigma21.t
+  sigma2.2 <- sigma22.t
+  p <- p1
+  err.all <- rbind(err.all,error)
+  count=count+1
+}
+```
+
+```{r echo=FALSE}
+cat("The iteration :",count,"\n")
+ts.plot(err.all,col=1:2,
+        xlab="iteration",main="The change on mean and weight")
+legend("topright", legend = c("mean","weight"), col = 1:2, lty = 1)
+```
+
+From the above, we know that the EM algorithm is successfully converged for the estimated normal components to 2-dimenstional data.
+
+Summary,the estimated normal components:  
+
+* $\mu$:  
+
+```{r}
+mu <- rbind(mu1.all[count,],mu2.all[count,])
+mu
+```
+
+* $\Sigma_1$:  
+```{r}
+sigma21.t
+```
+
+* $\Sigma_2$:  
+```{r}
+sigma22.t
+```
+
+* The weight:  
+```{r}
+cat("1 cluster:",p.all[count],"\n") ; cat("2 cluster:",1-p.all[count],"\n")
+```
+
+## (b)  
+Using the EM estimate to draw the fitted line in two histogram:  
+```{r}
+par(mfrow=c(1,2))
+x1 <- sort(X[,1])
+hist(x1, probability=TRUE,20,
+     main="Histogram of eruptions",xlab="eruptions")
+
+pdf1.em <- p*dnorm(x1,mean = mu1[1],sd = sqrt(sigma2.1[1,1])) +
+  (1-p)*dnorm(x1,mean = mu2[1],sd = sqrt(sigma2.2[1,1]))
+lines(x1,pdf1.em,col="red")
+box()
+legend("topleft",legend=c("mixture normal"),
+       col="red",lty=1,lwd=1,bty="n")
+x2 <- sort(X[,2])
+hist(x2, probability=TRUE,20,
+     main="Histogram of waiting",xlab="waiting")
+pdf2.em <- p*dnorm(x2,mean = mu1[2],sd = sqrt(sigma2.1[2,2])) +
+  (1-p)*dnorm(x2,mean = mu2[2],sd = sqrt(sigma2.2[2,2]))
+lines(sort(x2),pdf2.em,col="red",lwd=1)
+box()
+legend("top",legend=c("mixture normal"),
+       col="red",lty=1,lwd=1, bty="n")
+```
+
+From the above,we can see that the EM estimates are quite good.  
+In general,the distribution pattern is well captured.
+
+# Problem 2
+
+```{r}
+data2 <- read.csv("DataC.csv")
+pairs(data2)
+```
+
+## (a)  
+Assume that this data obeys Multivariate mixture of Gaussians.  
+Let $g(x=(x1,x2,x3);\mu,\Sigma)$ be the pdf of Multivariate normal,  
+$$
+\begin{split}
+& f(x;\mu_1,...,\mu_K,\Sigma_1,...,\Sigma_K) = \sum_{k=1}^{K}\tau_k g(x;\mu_k,\Sigma_k), \\
+& \text{where the weight } p_{ki} \overset{i.i.d}{\sim} \text{Multinomial}(n,\tau_1,...,\tau_K),\sum_{j=1}^{K}\tau_j = 1.
+\end{split}
+$$
+
+* EM algorithm  
+Refer to https://arxiv.org/pdf/1901.06708.pdf:
+
+1. Given initial: 
+$$
+\mu^{(0)}_k\in \mathbb{R}^{3x1},\Sigma^{(0)}_k=I_3 \in \mathbb{R}^{3x3};p_k^{(0)}  = (1/k,...,1/k) \in \mathbb{R}^{kx1}
+$$
+
+2. E-step:  
+$$
+\hat{\gamma}_{ik} = \dfrac{p_k f(X_i,Y_i;\mu_{k},\Sigma_{k})}{\sum_{j=1}^{3} p_k f(X_i,Y_i;\mu_{k},\Sigma_{k}))}
+$$
+
+3. M-step:  
+$$
+\begin{split}
+& \mu^{(t)}_k = \dfrac{\sum_{i=1}^{n} \hat{r}^{(t)}_{ik}x_i}{\sum_{i=1}^{n}\hat{r}^{(t)}_{ik}} \in\mathbb{R}^{3} ; \hat{\Sigma}_k = \dfrac{\sum_{i=1}^{n} \hat{r}^{(t)}_{ik}(x_i-\mu^{(t)}_k)(x_i-\mu^{(t)}_k)^T}{\sum_{i=1}^{n}\hat{r}^{(t)}_{ik}} \in \mathbb{R}^{3x3}, \\
+& p_{k} = \dfrac{1}{n}\sum_{i=1}^{n}\hat{r}_{ik} , k=1,2,...,K.
+\end{split}
+$$
+
+4. Repeat 2 and 3 until $\sum_{j=1}^{K}||\mu^{(t+1)}_j-\mu^{(t)}_j||< 10^{-6}$ and $\sum_{k=1}^{K}||p_k^{(t+1)}-p_k^{(t)}|| < 10^{-9}$. 
+
+First,the parameters for clusters $k=\{2,3,4,5\}$ are estimated by the EM algorithm ,and the appropriate k is determined via comparing its BIC.  
+The following is the line chart of BIC:  
+(The R cdoe for line chart is attached to the appendix)  
+```{r echo=FALSE,out.width = '100%'}
+file_Ac <- "EM_BIC.png"
+knitr::include_graphics(file_Ac)
+```
+
+From the above,I choose k = 3.  
+Next,print the EM result for k=3:  
+
+```{r}
+fmul <- function(mu,sigma2,xvec){
+  det <- det(sigma2)
+  d = length(xvec)
+  maha <- (xvec-mu) %*% solve(sigma2) %*% t(xvec-mu)
+  ((2*pi)^d*det)^(-1/2)*exp(-maha/2)
+}
+X <- as.matrix(data2)
+mu1 <- mu1.all<-t(c(18,35,18))
+mu2 <-mu2.all<-t(c(21,40,15))
+mu3 <-mu3.all<-t(c(20,50,18))
+
+sigma2.1 <- sigma2.2<-sigma2.3<-diag(c(1,1,1)) 
+error <-err.all<- c(1,1)
+p.all <- p <- t(rep(1/3,3))
+n= dim(data2)[1]
+count = 1
+while(error[1]>=10^(-6) | error[2]>=10^(-9)){
+  # E-step
+  r1<-r2<-r3 <- numeric(n) #membership
+  for(i in 1:n){
+    tot <- p[1]*fmul(mu1,sigma2.1,X[i,])+p[2]*fmul(mu2,sigma2.2,X[i,])+
+      p[3]*fmul(mu3,sigma2.3,X[i,])
+    r1[i] <- p[1]*fmul(mu1,sigma2.1,X[i,])/tot
+    r2[i] <- p[2]*fmul(mu2,sigma2.2,X[i,])/tot
+    r3[i] <- p[3]*fmul(mu3,sigma2.3,X[i,])/tot
+  }
+  # M-step
+  mu1.t <- (r1%*%X)/sum(r1) ; mu2.t <- (r2%*%X)/sum(r2) ;  mu3.t <- (r3%*%X)/sum(r3)
+  sigma21.t <- t(X- rep(1,n) %*% mu1.t) %*% diag(r1) %*% (X- rep(1,n) %*% mu1.t)/sum(r1)
+  sigma22.t <- t(X- rep(1,n) %*% mu2.t) %*% diag(r2) %*% (X- rep(1,n) %*% mu2.t)/sum(r2)
+  sigma23.t <- t(X- rep(1,n) %*% mu3.t) %*% diag(r3) %*% (X- rep(1,n) %*% mu3.t)/sum(r3)
+  p1 <- sum(r1)/n;p2 <- sum(r2)/n;p3 <- sum(r3)/n
+  # stop criterion
+  error[1] <- sum(abs(mu1-mu1.t)) + sum(abs(mu2-mu2.t)) + sum(abs(mu3-mu3.t))
+  error[2] <- abs(p1-p[1]) + abs(p2-p[2])+abs(p3-p[3])
+  # update
+  mu1.all <-rbind(mu1.all,mu1.t)
+  mu2.all <-rbind(mu2.all,mu2.t)
+  mu3.all <-rbind(mu3.all,mu3.t)
+  p.all <-rbind(p.all,cbind(p1,p2,p3))
+  mu1 <- mu1.t ; mu2 <-mu2.t ; mu3 <- mu3.t
+  sigma2.1 <- sigma21.t
+  sigma2.2 <- sigma22.t
+  sigma2.3 <- sigma23.t
+  p <- cbind(p1,p2,p3)
+  err.all <- rbind(err.all,error)
+  count=count+1
+}
+```
+
+```{r echo=FALSE}
+cat("The iteration :",count,"\n")
+ts.plot(err.all,col=1:2,
+        xlab="iteration",main="The change on parameter")
+legend("topright", legend = c("mean","weight"), col = 1:2, lty = 1)
+```
+
+From the above, we know that the EM algorithm for k =3 is successfully converged.  
+Summary,the estimated components:  
+* $\mu_1,\mu_2 \text{ amd }\mu_3$:  
+```{r}
+mumu <- data.frame(rbind(mu1.all[count,],mu2.all[count,],mu3.all[count,]))
+colnames(mumu) <- names(data2)
+rownames(mumu) <- c("$\\mu_1$","$\\mu_2$","$\\mu_3$")
+knitr::kable(mumu,row.names = TRUE)
+```
+
+* $\Sigma_1$:  
+```{r}
+sigma2.1
+```
+
+* $\Sigma_2$:  
+```{r}
+sigma2.2
+```
+
+* $\Sigma_3$:  
+```{r}
+sigma2.3
+```
+
+* The Weight p:  
+```{r}
+cat("1 cluster:",p.all[count,1],"\n");cat("2 cluster:",p.all[count,2],"\n");cat("3 cluster:",p.all[count,3],"\n");
+```
+
+## (b)
+Using Elbow method for selecting the appropriate k,  
+```{r message=FALSE, warning=FALSE}
+wss <- c()
+wss[1] <- sum(scale(data2,scale = FALSE)^2)
+for(i in 2:10){
+  km = kmeans(data2,centers = i)
+  wss[i] = sum(km$withinss)
+}
+library(ggplot2)
+wss.data <- data.frame("k"=1:10,"y"=wss)
+ggplot(wss.data,aes(x=k,y=y)) + geom_col()
+```
+
+Since there is little change after k=3, I choose k=3.  
+Next,estimate the paramter of 3-mixture model via MLE:  
+$$
+\begin{split}
+&\hat{\mu}_k = \dfrac{\sum_{i=1}^{n}p_{i,k} x_i}{n_k} \in \mathbb{R}^{3x1} ;\hat{\Sigma_k} = \dfrac{\sum_{i=1}^{n}p_{i,k}(x_i-\hat{\mu}_k)(x_i-\hat{\mu}_k)^T}{n_k} \in \mathbb{R}^{3x3},\\
+& \text{where }p_{i,k} = I(x_i \text{ is grouped as k}),n_{k}=\sum_{i=1}^{n}p_{i,k} \ .
+\end{split}
+$$
+```{r}
+kmean <- kmeans(data2,3)
+n1 <- as.numeric(kmean$cluster ==1)
+n2 <- as.numeric(kmean$cluster ==2)
+n3 <- as.numeric(kmean$cluster ==3)
+mu1.hat <- n1 %*% X / sum(n1)
+mu2.hat <- n2 %*% X / sum(n2)
+mu3.hat <- n3 %*% X / sum(n3)
+sigma21.hat <- t(X- rep(1,n) %*% mu1.hat) %*% diag(n1) %*% (X- rep(1,n) %*% mu1.hat)/sum(n1)
+sigma22.hat <- t(X- rep(1,n) %*% mu2.hat) %*% diag(n2) %*% (X- rep(1,n) %*% mu2.hat)/sum(n2)
+sigma23.hat <- t(X- rep(1,n) %*% mu3.hat) %*% diag(n3) %*% (X- rep(1,n) %*% mu3.hat)/sum(n3)
+```
+
+
+* $\mu_1,\mu_2 \text{ amd }\mu_3$:  
+```{r}
+mumu.hat <- data.frame(rbind(mu1.hat,mu2.hat,mu3.hat))
+colnames(mumu.hat) <- names(data2)
+rownames(mumu.hat) <- c("$\\mu_1$","$\\mu_2$","$\\mu_3$")
+knitr::kable(mumu.hat,row.names = TRUE)
+```
+
+* $\Sigma_1$:  
+```{r}
+sigma21.hat
+```
+
+* $\Sigma_2$:  
+```{r}
+sigma22.hat
+```
+
+* $\Sigma_3$:  
+```{r}
+sigma23.hat
+```
+
+* The Weight p:  
+```{r}
+cat("1 cluster:",kmean$size[1]/300,"\n");cat("2 cluster:",kmean$size[2]/300,"\n");cat("3 cluster:",kmean$size[3]/300,"\n")
+```
+
+The above results are obtained using MLE, which has many similarities with the results obtained by EM. The estimated performance of the EM algorithm is quite good.
+
+\newpage
+
+# Appendix(2.(b) BIC plot)
+
+```{r eval=FALSE}
+## k=2
+X <- as.matrix(data2)
+fmul <- function(mu,sigma2,xvec){
+  det <- det(sigma2)
+  d = length(xvec)
+  mu <- as.matrix(mu)
+  maha <- (xvec-mu) %*% solve(sigma2) %*% t(xvec-mu)
+  ((2*pi)^d*det)^(-1/2)*exp(-maha/2)
+}
+mu <- data.frame(kmeans(data2,2)$center)
+sigma2 <- replicate(2,diag(c(1,1,1)))
+error <-err.all<- c(1,1)
+p.all <- p <- t(rep(1/2,2))
+n= dim(data2)[1]
+count = 1
+while(error[1]>=10^(-6) | error[2]>=10^(-9)){
+  # E-step
+  r <- data.frame(0,0) #membership
+  for(i in 1:n){
+    tot <- p[1]*fmul(mu[1,],sigma2[,,1],X[i,])+p[2]*fmul(mu[2,],sigma2[,,2],X[i,])
+    r[i,1] <- p[1]*fmul(mu[1,],sigma2[,,1],X[i,])/tot
+    r[i,2] <- p[2]*fmul(mu[2,],sigma2[,,2],X[i,])/tot
+  }
+  # M-step
+  mu1.t <- (r[,1]%*%X)/sum(r[,1]) ; mu2.t <- (r[,2]%*%X)/sum(r[,2])
+  sigma21.t <- t(X- rep(1,n) %*% mu1.t) %*% diag(r[,1]) %*% (X- rep(1,n) %*% mu1.t)/sum(r[,1])
+  sigma22.t <- t(X- rep(1,n) %*% mu2.t) %*% diag(r[,2]) %*% (X- rep(1,n) %*% mu2.t)/sum(r[,2])
+  p1 <- sum(r[,1])/n;p2 <- sum(r[,2])/n
+  # stop criterion
+  error[1] <- sum(abs(mu[1,]-mu1.t)+abs(mu[2,]-mu2.t)) 
+  error[2] <- abs(p1-p[1]) + abs(p2-p[2])
+  # update
+  mu[1,] <- mu1.t ; mu[2,] <-mu2.t
+  sigma2[,,1] <- sigma21.t
+  sigma2[,,2] <- sigma22.t
+  p <- cbind(p1,p2)
+  err.all <- rbind(err.all,error)
+  count=count+1
+}
+s2 <- 0
+for (i in 1:n){
+  L = p[1]*fmul(mu[1,],sigma2[,,1],X[i,]) + p[2]*fmul(mu[2,],sigma2[,,2],X[i,])
+  s2 = s2+ log(L)
+}
+bic2 <- -2*s2 + log(n)*(10*2-1)
+
+## k=3
+mu <- data.frame(kmeans(data2,3)$center)
+sigma2 <- replicate(3,diag(c(1,1,1)))
+error <-err.all<- c(1,1)
+p.all <- p <- t(rep(1/3,3))
+n= dim(data2)[1]
+count = 1
+while(error[1]>=10^(-6) | error[2]>=10^(-9)){
+  # E-step
+  r <- data.frame(0,0,0) #membership
+  for(i in 1:n){
+    tot <- p[1]*fmul(mu[1,],sigma2[,,1],X[i,])+p[2]*fmul(mu[2,],sigma2[,,2],X[i,])+
+      p[3]*fmul(mu[3,],sigma2[,,3],X[i,])
+    r[i,1] <- p[1]*fmul(mu[1,],sigma2[,,1],X[i,])/tot
+    r[i,2] <- p[2]*fmul(mu[2,],sigma2[,,2],X[i,])/tot
+    r[i,3] <- p[3]*fmul(mu[3,],sigma2[,,3],X[i,])/tot
+  }
+  # M-step
+  mu1.t <- (r[,1]%*%X)/sum(r[,1]) ; mu2.t <- (r[,2]%*%X)/sum(r[,2]);mu3.t <- (r[,3]%*%X)/sum(r[,3])
+  sigma21.t <- t(X- rep(1,n) %*% mu1.t) %*% diag(r[,1]) %*% (X- rep(1,n) %*% mu1.t)/sum(r[,1])
+  sigma22.t <- t(X- rep(1,n) %*% mu2.t) %*% diag(r[,2]) %*% (X- rep(1,n) %*% mu2.t)/sum(r[,2])
+  sigma23.t <- t(X- rep(1,n) %*% mu3.t) %*% diag(r[,3]) %*% (X- rep(1,n) %*% mu3.t)/sum(r[,3])
+  p1 <- sum(r[,1])/n;p2 <- sum(r[,2])/n;p3 <- sum(r[,3])/n
+  # stop criterion
+  error[1] <- sum(abs(mu[1,]-mu1.t)+abs(mu[2,]-mu2.t)+abs(mu[3,]-mu3.t)) 
+  error[2] <- abs(p1-p[1]) + abs(p2-p[2]) + abs(p3-p[3])
+  # update
+  mu[1,] <- mu1.t ; mu[2,] <-mu2.t ; mu[3,] <-mu3.t
+  sigma2[,,1] <- sigma21.t
+  sigma2[,,2] <- sigma22.t
+  sigma2[,,3] <- sigma23.t
+  p <- cbind(p1,p2,p3)
+  err.all <- rbind(err.all,error)
+  count=count+1
+}
+s3 <- 0
+for (i in 1:n){
+  L = p[1]*fmul(mu[1,],sigma2[,,1],X[i,]) + p[2]*fmul(mu[2,],sigma2[,,2],X[i,])+
+    p[3]*fmul(mu[3,],sigma2[,,3],X[i,])
+  s3 = s3+ log(L)
+}
+bic3 <- -2*s3 + log(n)*(10*3-1)
+
+## k=4
+mu <- data.frame(kmeans(data2,4)$center)
+sigma2 <- replicate(4,diag(c(1,1,1)))
+error <-err.all<- c(1,1)
+p.all <- p <- t(rep(1/4,4))
+n= dim(data2)[1]
+count = 1
+while(error[1]>=10^(-6) | error[2]>=10^(-9)){
+  # E-step
+  r <- data.frame(0,0,0,0) #membership
+  for(i in 1:n){
+    tot <- p[1]*fmul(mu[1,],sigma2[,,1],X[i,])+p[2]*fmul(mu[2,],sigma2[,,2],X[i,])+
+      p[3]*fmul(mu[3,],sigma2[,,3],X[i,]) + p[4]*fmul(mu[4,],sigma2[,,4],X[i,])
+    r[i,1] <- p[1]*fmul(mu[1,],sigma2[,,1],X[i,])/tot
+    r[i,2] <- p[2]*fmul(mu[2,],sigma2[,,2],X[i,])/tot
+    r[i,3] <- p[3]*fmul(mu[3,],sigma2[,,3],X[i,])/tot
+    r[i,4] <- p[4]*fmul(mu[4,],sigma2[,,4],X[i,])/tot
+  }
+  # M-step
+  mu1.t <- (r[,1]%*%X)/sum(r[,1]) ; mu2.t <- (r[,2]%*%X)/sum(r[,2]);mu3.t <- (r[,3]%*%X)/sum(r[,3])
+  mu4.t <- (r[,4]%*%X)/sum(r[,4])
+  sigma21.t <- t(X- rep(1,n) %*% mu1.t) %*% diag(r[,1]) %*% (X- rep(1,n) %*% mu1.t)/sum(r[,1])
+  sigma22.t <- t(X- rep(1,n) %*% mu2.t) %*% diag(r[,2]) %*% (X- rep(1,n) %*% mu2.t)/sum(r[,2])
+  sigma23.t <- t(X- rep(1,n) %*% mu3.t) %*% diag(r[,3]) %*% (X- rep(1,n) %*% mu3.t)/sum(r[,3])
+  sigma24.t <- t(X- rep(1,n) %*% mu4.t) %*% diag(r[,4]) %*% (X- rep(1,n) %*% mu4.t)/sum(r[,4])
+  p1 <- sum(r[,1])/n;p2 <- sum(r[,2])/n;p3 <- sum(r[,3])/n;p4 <- sum(r[,4])/n
+  # stop criterion
+  error[1] <- sum(abs(mu[1,]-mu1.t)+abs(mu[2,]-mu2.t)+abs(mu[3,]-mu3.t)+abs(mu[4,]-mu4.t)) 
+  error[2] <- abs(p1-p[1]) + abs(p2-p[2]) + abs(p3-p[3])
+  # update
+  mu[1,] <- mu1.t ; mu[2,] <-mu2.t ; mu[3,] <-mu3.t ; mu[4,] <-mu4.t 
+  sigma2[,,1] <- sigma21.t
+  sigma2[,,2] <- sigma22.t
+  sigma2[,,3] <- sigma23.t
+  sigma2[,,4] <- sigma24.t
+  p <- cbind(p1,p2,p3,p4)
+  err.all <- rbind(err.all,error)
+  count=count+1
+}
+s4 <- 0
+for (i in 1:n){
+  L = p[1]*fmul(mu[1,],sigma2[,,1],X[i,]) + p[2]*fmul(mu[2,],sigma2[,,2],X[i,])+
+    p[3]*fmul(mu[3,],sigma2[,,3],X[i,]) + p[4]*fmul(mu[4,],sigma2[,,4],X[i,])
+  s4 = s4+ log(L)
+}
+bic4 <- -2*s4 + log(n)*(10*4-1)
+## k=5
+mu <- data.frame(kmeans(data2,5)$center)
+sigma2 <- replicate(5,diag(c(1,1,1)))
+error <-err.all<- c(1,1)
+p.all <- p <- t(rep(1/5,5))
+n= dim(data2)[1]
+count = 1
+while(error[1]>=10^(-6) | error[2]>=10^(-9)){
+  # E-step
+  r <- data.frame(0,0,0,0,0) #membership
+  for(i in 1:n){
+    tot <- p[1]*fmul(mu[1,],sigma2[,,1],X[i,])+p[2]*fmul(mu[2,],sigma2[,,2],X[i,])+
+      p[3]*fmul(mu[3,],sigma2[,,3],X[i,]) + p[4]*fmul(mu[4,],sigma2[,,4],X[i,]) +
+      p[5]*fmul(mu[5,],sigma2[,,5],X[i,])
+    r[i,1] <- p[1]*fmul(mu[1,],sigma2[,,1],X[i,])/tot
+    r[i,2] <- p[2]*fmul(mu[2,],sigma2[,,2],X[i,])/tot
+    r[i,3] <- p[3]*fmul(mu[3,],sigma2[,,3],X[i,])/tot
+    r[i,4] <- p[4]*fmul(mu[4,],sigma2[,,4],X[i,])/tot
+    r[i,5] <- p[5]*fmul(mu[5,],sigma2[,,5],X[i,])/tot
+  }
+  # M-step
+  mu1.t <- (r[,1]%*%X)/sum(r[,1]) ; mu2.t <- (r[,2]%*%X)/sum(r[,2]);mu3.t <- (r[,3]%*%X)/sum(r[,3])
+  mu4.t <- (r[,4]%*%X)/sum(r[,4]) ; mu5.t <- (r[,5]%*%X)/sum(r[,5])
+  sigma21.t <- t(X- rep(1,n) %*% mu1.t) %*% diag(r[,1]) %*% (X- rep(1,n) %*% mu1.t)/sum(r[,1])
+  sigma22.t <- t(X- rep(1,n) %*% mu2.t) %*% diag(r[,2]) %*% (X- rep(1,n) %*% mu2.t)/sum(r[,2])
+  sigma23.t <- t(X- rep(1,n) %*% mu3.t) %*% diag(r[,3]) %*% (X- rep(1,n) %*% mu3.t)/sum(r[,3])
+  sigma24.t <- t(X- rep(1,n) %*% mu4.t) %*% diag(r[,4]) %*% (X- rep(1,n) %*% mu4.t)/sum(r[,4])
+  sigma25.t <- t(X- rep(1,n) %*% mu5.t) %*% diag(r[,4]) %*% (X- rep(1,n) %*% mu5.t)/sum(r[,5])
+  p1 <- sum(r[,1])/n;p2 <- sum(r[,2])/n;p3 <- sum(r[,3])/n;p4 <- sum(r[,4])/n
+  p5 <- sum(r[,5])/n
+  # stop criterion
+  error[1] <- sum(abs(mu[1,]-mu1.t)+abs(mu[2,]-mu2.t)+abs(mu[3,]-mu3.t)+abs(mu[4,]-mu4.t)+
+                    abs(mu[5,]-mu5.t)) 
+  error[2] <- abs(p1-p[1]) + abs(p2-p[2]) + abs(p3-p[3]) + abs(p4-p[4]) 
+  # update
+  mu[1,] <- mu1.t ; mu[2,] <-mu2.t ; mu[3,] <-mu3.t ; mu[4,] <-mu4.t 
+  mu[5,] <- mu5.t
+  sigma2[,,1] <- sigma21.t
+  sigma2[,,2] <- sigma22.t
+  sigma2[,,3] <- sigma23.t
+  sigma2[,,4] <- sigma24.t
+  sigma2[,,5] <- sigma25.t
+  p <- cbind(p1,p2,p3,p4,p5)
+  err.all <- rbind(err.all,error)
+  count=count+1
+}
+s5 <- 0
+for (i in 1:n){
+  L = p[1]*fmul(mu[1,],sigma2[,,1],X[i,]) + p[2]*fmul(mu[2,],sigma2[,,2],X[i,])+
+    p[3]*fmul(mu[3,],sigma2[,,3],X[i,]) + p[4]*fmul(mu[4,],sigma2[,,4],X[i,]) +
+    p[5]*fmul(mu[5,],sigma2[,,5],X[i,])
+  s5 = s5+ log(L)
+}
+bic5 <- -2*s5 + log(n)*(10*5-1)
+bic5
+all.bic <- c(bic2,bic3,bic4,bic5)
+plot(x=2:5,y=all.bic,type="b",xlab="cluster",ylab="BIC",
+     main = "BIC via EM")
+```
+
