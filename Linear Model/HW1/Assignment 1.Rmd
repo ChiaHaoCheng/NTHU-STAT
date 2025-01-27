@@ -1,0 +1,180 @@
+---
+title: "Assigment 1 - Linear model"
+author:
+- 'ID : 111024517'
+- 'Name : 鄭家豪'
+date: "2022-10-06"
+geometry: "left=2cm,right=2cm,top=2cm,bottom=2cm"
+header-includes:
+  - \usepackage{xeCJK}
+  - \setCJKmainfont{標楷體}
+  - \setCJKmonofont{標楷體}
+output:
+  pdf_document:
+    latex_engine: xelatex
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(width = 100)
+```
+
+### 1.(a) 
+
+```
+將此筆資料呈現出來，如下。
+sex、status和verbal皆為整數。
+sex代表性別，沒有量化含意。
+status和verbal皆是可量化的變數，值越大其對應的含意越高。
+```
+```{r ,echo=FALSE}
+data1 <- read.table("http://www.stat.nthu.edu.tw/~swcheng/Teaching/stat5410/data/teengamb.txt",header=TRUE)
+data1
+```
+
+```
+以下是藉由summary()這個指令對此筆資料所出來的結果。
+sex代表性別男女，因此其分位數不具備任何含意。
+status的數據分佈於[28,61.5]之間相當均勻。
+income的數據分佈於[0.6,3.25]之間相當密集。
+verbal的數據分佈於[6,8]之間相當均勻。
+gamble的中位數與最小值頗相近，代表數據集中在[0,6]之間相當密集。
+```
+```{r ,echo=FALSE}
+summary(data1)
+```
+
+```{r,echo=FALSE, fig.height = 18, fig.width = 18}
+par(mfrow=c(3,2))
+boxplot(data1$gamble, main="gamble")
+boxplot(data1$sex, main="sex")
+boxplot(data1$status, main="status")
+boxplot(data1$income, main="income")
+boxplot(data1$verbal, main="verbal")
+
+```
+
+```
+由gamble的boxplot來看，數據分佈於最小值至中間值之間相當密集，中間值至最大值的數據分佈比較分散。
+sex 不具量化含意，故其boxplot沒辦法觀察出甚麼內容。
+由status的boxplot來看，數據分佈於[28,61.5]之間相當均勻。
+由income的boxplot來看，數據分佈於[0.6,3.25]相當密集。
+由verbal的boxplot來看，數據分佈於[6,8]之間相當均勻
+以上由boxplot觀察的結果與前面summary所得到的結稐一致。
+```
+
+```{r,echo=FALSE, fig.height = 18, fig.width = 18}
+par(mfrow=c(3,2))
+hist(data1$gamble, main="gamble",xlab = "")
+hist(data1$sex, main="sex",xlab = "")
+hist(data1$status, main="status",xlab = "")
+hist(data1$income,main="income",xlab = "")
+hist(data1$verbal,main="verbal",xlab = "")
+```
+
+```
+由以上直方圖來看，gamble很顯然是正偏態分佈(skewed to right)，因此數據集中於左方。
+此筆資料，性別是男生的數量比較多。
+其他變數的直方圖，所觀察的現象，與前面summary和boxplot所得到的結論一致。
+```
+
+```{r,echo=FALSE}
+pairs(data1)
+
+```
+
+```
+觀察sex與gamble的圖，可以發現男生的賭博支出普遍高於女生。
+然後sex與其他變數之間的圖，分佈都蠻均勻的。
+status與income的圖，和status與verbal的圖，都有蠻明顯的正相關。
+gamble與status、income和verbal，似乎有負相關的趨勢。
+```
+
+### 1.(b)
+
+```
+此筆數據應視為observational data，因為此筆資料比較像是分析各個變數與賭博支出的關係，
+不像是為了釐清哪些因素能使實驗產生不同結果，而控制變數。
+```
+
+
+\newpage
+### 2.(a) 
+```
+將此筆資料呈現出來，如下。
+可發現這些變數:HCHO、catalyst、temp和time，取值皆為整數，而且只有幾種可能值。
+如:temp的值只有100、120、140、160、180。
+另外可發現除了HCHO和press外，其他變數的取值具有等差數列的性質。
+```
+```{r, echo=FALSE}
+data2 <- read.table("http://www.stat.nthu.edu.tw/~swcheng/Teaching/stat5410/data/wrinkle.txt",header = TRUE)
+data2
+```
+
+```
+對此筆資料，使用summary()這個指令，結果如下。
+press的中位數與最大值頗接近，代表一半的數據集中在[4.5,4.9]之間，且一半的數據分散在[1.3,4.5]之間。
+HCHO和catalyst的數據分佈有對稱性的可能。
+temp的第三四分位數與最大值相同，代表有四分之一的數據集中在180度(溫度單位)。
+time分別各有四分之一的數據集中在1和7，
+```
+
+```{r,echo=FALSE}
+summary(data2)
+
+```
+
+```{r,echo=FALSE, fig.height = 18, fig.width = 18}
+par(mfrow=c(3,2))
+boxplot(data2$press, main="press")
+boxplot(data2$HCHO, main="HCHO")
+boxplot(data2$catalyst, main="catalyst")
+boxplot(data2$temp, main="temp")
+boxplot(data2$time, main="time")
+
+```
+
+```
+由press的boxplot來看，中位數與第三四分位數蠻接近的，且中位數與第一四分位數相差蠻大的，
+代表一半的數據集中在[4.5,4.9]之間，且一半的數據分散在[1.3,4.5]之間。
+由HCHO和catalyst的boxplot來看，有分布對稱的可能性。
+由temp的boxplot來看，最大值和第三四分位數相同。
+由time的boxplot來看，最大值等於第三四分位數且最小值等於第一四分位數。
+以上由boxplot觀察的結果與前面summary所得到的結稐一致。
+```
+```{r,echo=FALSE, fig.height = 18, fig.width = 18}
+par(mfrow=c(3,2))
+hist(data2$press, main="press",xlab = "")
+hist(data2$HCHO, main="HCHO",xlab = "")
+hist(data2$catalyst, main="catalyst",xlab = "")
+hist(data2$temp,main="temp",xlab = "")
+hist(data2$time,main="time",xlab = "")
+
+```
+
+```
+由上方直方圖來看，press之數據集中在[4.5,5]，與summary和boxplot所觀察的結論一致。
+前述討論的對稱性，由直方圖觀察出，不支持HCHO和catalyst分布對稱的可能性。
+觀察不出temp的第三四分位數多少，然後time的數據明顯集中在1和7。
+```
+
+```{r,echo=FALSE}
+pairs(data2)
+```
+
+```
+觀察press對catalyst的圖，由於catalyst分布相當集中在[1,4]和[12,13]區間(由直方圖觀察出來)，
+對應之區間的數據相當密集，可看出兩者變數呈正相關。
+除了catalyst，其他變數對press的散佈圖，分佈較為分散，無法看出明顯的相關性。
+除了press，其他變數相對應的散佈圖，分佈也較為分散，因此無法看出明顯的相關性。
+press外的變數，彼此之間的散佈圖可觀察出規則性，可能是因為這些變數取值只有幾種可能，才會導致這樣的結果。
+```
+
+### 2.(b)
+
+```
+此筆數據應視為experimental data。
+因為除了press，其他變數的取值都只有幾種可能，
+其目的應該是為了釐清哪些因素能使實驗產生不同結果而形成的概念。
+```
