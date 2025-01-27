@@ -1,0 +1,225 @@
+---
+title: "HW 5-Linear Model"
+author:
+- 'ID : 111024517'
+- 'Name : 鄭家豪'
+date: "due on 12/01"
+output:
+  pdf_document:
+    latex_engine: xelatex
+  word_document: default
+header-includes:
+- \usepackage{leading}
+- \leading{18pt}
+- \usepackage{xeCJK}
+- \setCJKmainfont{標楷體}
+- \setCJKmonofont{標楷體}
+geometry: left=3cm,right=3cm,top=2cm,bottom=2cm
+classoption: a4paper
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+```
+ 
+# Problem 1  
+
+## Read data  
+```{r}
+data <- read.table('http://www.stat.nthu.edu.tw/~swcheng/Teaching/stat5410/data/height.txt',
+                   header = FALSE,skip = 2)
+colnames(data) <- c("HF","Av_HS","NumF")
+kable(t(data))
+```
+ (HF:Height of Father ; Av_HS:Average Height of Son ; Numf : number of Fathers)  
+ 
+## (i)  
+ **Model:** Av_HS = $\beta_0+\beta_1 \times \text{HF} + \epsilon$ , where $E(\epsilon_i)=0$ , $Var(\epsilon_i) = \sigma^2/n_{s_i}$.  
+ 考量到這組數據只提供父親的個數($n_i$)但並沒有提供每個兒子身高平均數的個數($n_{s_i}$)，這裡應使用 Weighted least square(WLS)進行分析，其權重(weight)，由這組數據提供的資訊，只能假設父親個數與兒子個數成比例($n_{s_i} \propto n_i$)，考慮使用每個身高的父親個數來當作weight:  
+$$
+\text{w}_i = \text{n}_i
+$$ 
+```{r}
+weight <- data$NumF
+model <- lm(Av_HS ~ HF , data=data,weights = weight)
+summary_model <- summary(model)
+summary_model
+```
+ 
+ 由此模型的summary結果，我們得到 $\hat \beta_1 = 0.5297$，當父親的身高增加一單位，兒子的平均身高會增加0.5297單位，代表身高比較高的父親，其兒子平均身高會比較高。  
+ 因此，該題所求的模型為:  Av_HS = $32.5820+0.5297  \times \text{HF}$。  
+ 
+## (ii)  
+ 依照題意，需要檢定  
+$$
+\text{H}_0 : \beta_0 =0 ,\beta_1=1 \ \ \text{v.s.} \ \ \text{H}_1 : \beta_0 \neq0 \ \text{or} \ \beta_1 \neq 1
+$$
+ 這裡使用 anova() 指令來作檢定:  
+```{r}
+model_ii <- lm(Av_HS ~ HF -1 ,offset = HF,data = data,weights=weight)
+anova(model_ii,model)
+```
+ 因為 p-value = $4.873 \times 10^{-8} < 0.05$，所以 reject $\text{H}_0$ with significant level $\alpha=0.05$。這意味著不適合直接用爸爸身高來預測兒子平均身高。  
+ 
+# Problem 2  
+ 
+## Read data  
+```{r}
+pipe <- read.table("http://www.stat.nthu.edu.tw/~swcheng/Teaching/stat5410/data/pipeline.txt",
+                   header=TRUE)
+```
+ 
+## (i)  
+ **Model**: $\text{Lab} = \beta_0 + \beta_1 \times \text{Field} + \epsilon$  
+```{r echo=FALSE}
+model1 <- lm(Lab ~ Field,data = pipe)
+summary(model1)
+```
+ 
+ **Fitting model:** $\hat y_\text{Label} = -1.96750+1.22297\times \text{Field}$  
+```{r echo=FALSE}
+plot(x = pipe$Field,y = summary(model1)$residuals,
+     ylab = "Residuals",xlab = "Field")
+abline(0,0)
+arrows(x0 =10,y0=0,x1=10,y1=5,col = "red")
+arrows(x0 =10,y0=0,x1=10,y1=-5,col = "red")
+arrows(x0 =37,y0=0,x1=37,y1=12,col = "red")
+arrows(x0 =37,y0=0,x1=37,y1=-12,col = "red")
+arrows(x0 =50,y0=0,x1=50,y1=19,col = "red")
+arrows(x0 =50,y0=0,x1=50,y1=-19,col = "red")
+arrows(x0 =62,y0=0,x1=62,y1=7,col = "red")
+arrows(x0 =62,y0=0,x1=62,y1=-7,col = "red")
+```
+ 
+ 上圖為此模型的 residual plot ，可以發現隨著Field 增加，var(residual)會跟著增加，不過到後半段又減少了。因此 non-constant width band，代表 non-constant variance.  
+ 
+## (ii)  
+```{r echo=FALSE}
+i <- order(pipe$Field)
+npipe <- pipe[i,]
+ff <- gl(12,9)[-108]
+meanfield <- unlist(lapply(split(npipe$Field,ff),mean))
+varlab <- unlist(lapply(split(npipe$Lab,ff),var))
+```
+ 
+ **Model:** $\text{Log var(Lab)} = \text{Log a}_0 + a_1\text{Log Field} + \epsilon$
+
+```{r echo=FALSE}
+model_ex1 <- lm(log(varlab) ~ log(meanfield))
+summary(model_ex1)
+plot(x = log(meanfield),y=log(varlab),cex=2)
+abline(model_ex1$coef,col="blue")
+```
+ 
+ From the above，由於兩變數的關係主要是隨著meanfield增加varlab隨之增加，很明顯log(meanfield)最大值的點為一個離群點，我們將其移除再做一次regression:  
+```{r echo=FALSE}
+varlab_remove <-varlab[-which.max(meanfield)]
+meanfield_remove <- meanfield[-which.max(meanfield)]
+model_ex2 <- lm(log(varlab_remove) ~ log(meanfield_remove))
+summary(model_ex2)
+plot(x = log(meanfield_remove),
+     y=log(varlab_remove),cex=2,
+     xlab = "log(meanfield)",
+     ylab = "log(varlab)",
+     main = "plot(remove last point)")
+abline(model_ex1$coef,col="blue")
+abline(model_ex2$coef,col="red")
+legend("topleft", 
+       legend=c("Fitting line(not remove last point)","Fitting line(remove last point)"),
+       col=c("blue","red"), 
+       lty=c(1,1), pch=c(NA,NA), lwd=1)
+```
+ 
+ 我們會發現，移除離群點後的regression line斜率會比原本的regression line的斜率還高些，這是因為離群點的log(varlab)值太小會使得regression line往下移動的效應存在。  
+ 對兩條線做比較，會發現紅線的fitting line比較貼近大部份的點，因此使用移除離群點後得出的model來估計係數:  
+```{r echo=FALSE}
+AA <- summary(model_ex2)
+kable(AA$coefficients[1:2,1],
+      col.names = "coefficient")
+```
+ 這裡我們得到 $a_0$ 和 $a_1$ 的估計值分別為 $\text{exp}(-1.935167)=0.1444001$ 和 1.670723.  
+ 接著我們進行WLS fit of Lab on Field: 在(i)我們知道 non-constant variance，根據 L.N. p.6-4 ，其weight=$\dfrac{1}{\text{var(Lab)}}$ given $(\hat a_0=0.1444002,\hat a_1=1.670723)$。  
+```{r}
+w <- 1/(0.1444001*(npipe$Field)^(1.670723))
+model2 <- lm(Lab ~ Field , data=npipe,weights = w)
+summary(model2)
+```
+  這裡得到相當高的$R^2=0.921$和相當小的$\hat \sigma=0.9846$，與沒給予weight的regression summary作對比(其$R^2=0.8941$,$\hat \sigma=7.865$)，模型結果改善很多。  
+ 
+# Problem 3  
+ 
+* Read data:  
+```{r}
+data <- read.table("http://www.stat.nthu.edu.tw/~swcheng/Teaching/stat5410/data/crank.txt",
+                   header = TRUE)
+```
+這裡先所有曲柄銷 (crankpin) 的外徑長換換成 inches:  
+```{r}
+inches <-  0.00001*data$diameter + 0.742
+data[,3] <- inches
+names(data)[3] <- "inches"
+inches
+```
+ 
+```{r echo=FALSE}
+plot(x=data$day,y=data$inches,xlab = "day",ylab="inches")
+lines(1:28,rep(0.74275,28),lty=2,cex=0.8,col="red")
+text(x=19.5, y=0.74273, 
+     labels = c("inches=0.74275"),
+     col="red")
+```
+ 檢驗:  
+ 
+* (1) : Responses(average size) fall near the middle of the specified range  
+* (2) : Responses(average size) should not depend on time  
+ 由上面的 inches-day plot 可以看出有8個固定day下對應的點有8個group，並且很明顯觀察到每個group mean(inches(diameter) average per group ,denoted as $\bar y_i$.)都在中位數0.74275之上，依照圖形來看(1)是不滿足的，但為了依統計顯著性說明這件事，需要做檢定。  
+ 
+ 要檢定(1)、(2)，等同於 testing :  
+$$
+\text{H}_0 : \bar y_i = 0.74275 +\epsilon \ \ \text{v.s.} \ \ \text{H}_1 : \bar y_i = \beta_0 + \beta_1 \times \text{unique(day)} +\epsilon
+$$
+ 
+ 這裡算出每一群的 inches(diameter) average:   
+```{r}
+y_bar <- c()
+day <- unique(data$day)
+for (i in 1:length(day)){
+  y_bar[i] <- mean(data$inches[data$day ==day[i]])
+}
+```
+ 
+ 接著使用anova()指令來作檢定:  
+```{r}
+lm <- lm(y_bar ~ day)
+lm_null <- lm(y_bar ~ offset(0.74275*rep(1,8))-1)
+anova(lm_null,lm)
+```
+ 
+ 因為 p-value = $8.371 \times 10^{-5} < 0.05$，reject $\text{H}_0$ at level $\alpha=0.05$。
+ 不過考量到 response為每一群的平均值，使得樣本數只有 8，數量太少可能會不夠充分說明檢定結果。這裡用 individual inches(diameter) 作為response做檢定:  
+$$
+\text{H}_0 : \text{inches}= 0.74275 +\epsilon \ \ \text{v.s.} \ \ \text{H}_1: \text{inches} = \beta_0 + \beta_1 \times \text{day} +\epsilon
+$$
+ 
+ 使用anova()指令做檢定:  
+```{r}
+lm <- lm(inches ~ day , data=data)
+lm_null <- lm(inches ~ offset(0.74275*rep(1,40))-1)
+anova(lm_null,lm)
+```
+ 
+ 其p-value < 0.05，reject $\text{H}_0$ at level $\alpha=0.05$，與使用 每一群inches的平均數當 response 的推論結果一樣。  
+ 總和上述，(1)、(2)中至少有一個會不成立，因此這個製程不應該是 "under control"。  
+ 最後我們來做 lack of fit test:  
+$$
+\text{H}_0 : \text{inches} = \beta_0 + \beta_1 \times \text{day} +\epsilon \ \ \text{v.s.} \ \ \text{H}_1: \text{inches} = \beta_0 + \beta_1 \times \text{day} +\epsilon \ \text{is too simple}
+$$
+ 我們使用anova()指令做檢定:  
+```{r}
+lm <- lm(inches ~ day , data=data)
+lm_sature <- lm(inches ~ factor(day),data=data)
+anova(lm,lm_sature)
+```
+ 
+ 這裡觀察到 p-value = 0.08354 > 0.05，代表沒有足夠證據說明此模型有 lack of fit。
