@@ -1,0 +1,155 @@
+---
+title: "HW 3 - Linear model"
+author: 
+- 'ID : 111024517'
+- 'Name : 鄭家豪'
+date: due on 11/03
+header-includes:
+  - \usepackage{leading}
+  - \leading{18pt}
+  - \usepackage{xeCJK}
+  - \setCJKmainfont{標楷體}
+  - \setCJKmonofont{標楷體}
+output:
+  pdf_document:
+    latex_engine: xelatex
+classoption: a4paper
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1.  
+
+讀取資料:  
+```{r}
+dat1 <- read.table("http://www.stat.nthu.edu.tw/~swcheng/Teaching/stat5410/data/uswagesall.txt",
+                 header = TRUE)
+```
+ (a)
+ Model a : wages = $\beta_0+\beta_1(educ)+\beta_2(exper)+\epsilon$
+```{r results='hide'}
+a_fit <- lm(wage ~ educ + exper,data= dat1)
+summary(a_fit)
+```
+```{r echo=FALSE}
+file <- "ai_summary.png"
+knitr::include_graphics(file)
+```
+
+ i. 這裡我們用 F-statistic 的值來對其假設 $H_{0i}:\beta_1=\beta_2=0$ vs. $H_{1i}:$at least one $\beta_k$ does not equal to zero 做檢定，可以發現 the calculated F-statistic 3024 is larger than the critical value $F_{(0.95,2,28152)}=2.996051$ and the provided p-value is smaller than 0.05，因此在顯著水準為0.05下拒絕 $H_{0i}$。
+  
+\newpage
+ ii. $H_{0ii}:\beta_1=0$ vs. $H_{1ii}:\beta_1$ and $\beta_2$ does not equal 0
+```{r eval=FALSE, include=TRUE}
+aii_nullfit <- lm(wage ~exper,data = dat1)
+anova(aii_nullfit,a_fit)
+```
+```{r echo=FALSE}
+file <- "aii_anova.png"
+knitr::include_graphics(file)
+```
+
+以ANOVA的結果來看，p-value極小表示 $H_{1ii}$ 比較顯著。  
+因此在顯著水準為0.05下拒絕 $H_{0ii}$。  
+ iii. $H_{0iii}:wages =\beta_0+\epsilon$ vs. $H_{1iii}:wages =\beta_0+\beta_1(educ)+\epsilon$  
+```{r eval=FALSE, include=TRUE}
+aiii_nullfit <- lm(wage ~ 1,data=dat1)
+aiii_fit <- lm(wage ~ educ,data = dat1)
+anova(aiii_nullfit,aiii_fit)
+```
+```{r echo=FALSE}
+file <- "aiii_anova.png"
+knitr::include_graphics(file)
+```
+   
+以ANOVA的結果來看，p-value極小表示 $H_{1iii}$ 比較顯著。  
+因此在顯著水準為0.05下拒絕 $H_{0iii}$。  
+
+ (b)  
+ The effect of 1 additional year of experience to this model is 
+ $\beta_2 =\dfrac{\partial (wage)}{\partial(exper)}$.  
+ So,the predict effect of 1 additional year of experience to this model is $\hat \beta_2 = 10.6057$.  
+ (c) Model c : $\log(wages)$ = $\beta_0+\beta_1(educ)+\beta_2(exper)+\epsilon$  
+```{r echo=TRUE}
+c_fit <- lm(I(log(wage))~educ + exper,data= dat1)
+```
+ (i)  
+ 這裡F-test 的檢定統計量為 : $\dfrac{(RSS_c-RSS_a)/(df_a - df_c)}{RSS_a/(n-df_a)}$ , where RSS_i is the residual sum of square in model i. 
+ 由於對 wage 取 log 後，與原本wage的尺度不一致，在計算RSS時會與 question a 的 RSS 不一致，因此不能使用 F-test 來比較兩個 response尺度不一樣的模型。  
+ (ii)  
+```{r , eval=F, echo=T}
+summary(c_fit)
+```
+```{r echo=FALSE}
+file <- "c_summary.png"
+knitr::include_graphics(file)
+```
+  
+這裡我們可以發現解釋變數皆顯著，與 a 一致。但 $R^2=0.2128$ > 0.1768407: $R^2$ of model a，代表wage能被這些解釋變數解釋的比例，model c 略勝一籌。另外，model a 的 fitted value，會有在負數值，檢驗如下:  
+```{r}
+length(fitted(a_fit)[fitted(a_fit)<0])
+```
+  
+代表 fitted value 有83個是負數，這不應屬於 wage 變數的定值範圍。另外，model c 因為expoential function的特性，可保證每組新資料預測的wage恆為正。因此 model c is better fitting than model a。  
+
+ (d)  
+ The effect of 1 additional year of experience to model c is 
+ $\beta_2 =\dfrac{\partial \ ln(wage)}{\partial(exper)}$.  
+ So,the predict effect of 1 additional year of experience to model c is $\hat \beta_2 = 0.0196442$.  
+ (e)  
+```{r , eval=F, echo=T}
+e_fit <- lm(I(log(wage))~ offset(0.1*educ)+exper,data= dat1)
+anova(e_fit,c_fit)
+```
+```{r echo=FALSE}
+file <- "e_anova.png"
+knitr::include_graphics(file)
+```
+  
+ P-value= 0.3253 > 0.05，故無足夠證據說明 $H_{0e}:\beta_1 = 0.1$不會成立，因此在顯著水準0.05下不拒絕$H_{0e}$。  
+
+
+ (f)  
+ i. Model f : log(wages) = $\beta_0+\beta_1(educ)+\beta_2(exper)+\epsilon$ based on reduced data.
+```{r }
+newdata <- dat1[1000*(1:28),]
+f_fit <- lm(I(log(wage))~educ + exper,data= newdata)
+summary(c_fit)$r.squared - summary(f_fit)$r.squared
+```
+ 由於 $R^2$ of model c - $R^2$ of model f < 0 ，因此 model of this reduced data version ，在這組數據上是有較高的 $R^2$。  
+ 這裡 model f 的 $R^2$ 比 model c 大，可能是因為減少後的數據能被解釋的變異比例比原始的還多，所以減少後的數據不一定總會有比原本數據高或低的$R^2$。  
+ 
+ ii.    
+```{r, eval=F, echo=T}
+summary(f_fit)
+```
+```{r echo=FALSE}
+file <- "f_summary.png"
+knitr::include_graphics(file)
+```
+  
+ educ 最為顯著，exper的p-value=0.61765 > 0.05 ，並不顯著。  
+ 利用$T_i=\dfrac{\hat \beta_i}{se(\hat \beta_{i})} = \dfrac{\hat \beta_i}{\sqrt{(X^TX)_{ii}^{-1}} \hat \sigma}$ ，來檢驗 $\beta_i = 0$是否足夠拒絕。  
+
+```{r}
+beta_2_hat <-c(c_fit$coefficients[3],f_fit$coefficients[3])
+sigma_hat <-c(summary(c_fit)$sigma,summary(f_fit)$sigma)
+dataXform_c <- as.matrix(cbind(dat1$educ,dat1$exper))
+dataXform_f <- as.matrix(cbind(newdata$educ,newdata$exper))
+root_c <- sqrt(solve(t(dataXform_c)%*% dataXform_c)[2,2])
+root_f <- sqrt(solve(t(dataXform_f)%*% dataXform_f)[2,2])
+comparison <- data.frame("beta2 hat"=beta_2_hat,
+                         "sigma hat"=sigma_hat,
+                         "root(Gram)22"=c(root_c,root_f),
+                         row.names = c("model c","model f"))
+knitr::kable(comparison)
+```
+  
+ 以上列表為計算 T-statistic 所需的量值($\text{beta2.hat} = \hat \beta_2$,$\text{sigma.hat}=\hat \sigma$,$\text{root.Gram.22}=\sqrt{(X^TX)^{-1}_{22}}$)，可以發現 model c 與 model f 的 $\hat \sigma$ 差不多，model c 的 $\hat \beta_2$ 大約是 model f 的 4.6倍，但 $\sqrt{(\text{Gram matrix})^{-1}_{22}} = \sqrt{(X^TX)^{-1}_{22}}$的值，兩個模型差很多，model c的此值太小會使得 T-statistic 過大，導致顯著。相似地，model f 的此值約為0.012，影響 T-statistic 的幅度沒有比 model c 還要強烈。  
+ 因此，相較於 model c，expr 在model f 不顯著的主要原因是在於 $\sqrt{(\text{Gram matrix})^{-1}_{22}}$不夠小。  
+ 
+## 2.  
+
+因為$se(\hat \beta_{i}) = \sqrt{(X^TX)_{ii}^{-1}} \hat \sigma$ . 故n越大代表會讓$se(\hat \beta_{i})$變得很小以致$\hat \beta_{i}$ 越接近真實的$\beta_{i}$。還有$R^2$很小代表此數據被這模型解釋的變異比例非常少，可能因為能"主要"解釋 birth weight 的變數並不在所假設的模型上，所以在這情況下，會發生每一個解釋變數會在顯著水準0.01下顯著，但不足以解釋 birth weight的情況。
