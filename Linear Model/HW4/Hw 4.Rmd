@@ -1,0 +1,241 @@
+---
+title: "HW 4-Linear Model"
+author: 
+- 'ID : 111024517'
+- 'Name : 鄭家豪'
+date: due on 11/17
+geometry: "left=3cm,right=3cm,top=2cm,bottom=2cm"
+header-includes:
+  - \usepackage{leading}
+  - \leading{18pt}
+  - \usepackage{xeCJK}
+  - \setCJKmainfont{標楷體}
+  - \setCJKmonofont{標楷體}
+output:
+  pdf_document:
+    latex_engine: xelatex
+classoption: a4paper
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+```
+
+# Problem 1  
+  y : log (oxygen demand, mg oxygen per minute)  
+  x1 : biological oxygen demand, mg/liter  
+  x2 : total Kjeldahl nitrogen, mg/liter  
+  x3 : total solids, mg/liter  
+  x4 : total volatile solids, a component of x3, mg/liter  
+  x5 : chemical oxygen demand, mg/liter  
+ 
+ Model : $y_i = \beta_0+\beta_1X_{1i}+\beta_2X_{2i}+\beta_3X_{3i}+\beta_4X_{4i}+\beta_5X_{5i}+\epsilon_i$  
+ ,where $i=1,2,...,n$ , $\ \boldsymbol{\epsilon}=(\epsilon_1,...,\epsilon_n)^T \sim N(\mathbf{0},\sigma^2\mathbf{I_n})$.  
+ Parameter space : $\Omega = \{\boldsymbol{\beta} \in \mathbb{R}^6 : y=\beta_0+\beta_1X_{1}+\beta_2X_{2}+\beta_3X_{3}+\beta_4X_{4}+\beta_5X_{5}+\epsilon\}$  
+```{r}
+data <- read.table('http://www.stat.nthu.edu.tw/~swcheng/Teaching/stat5410/data/wastes.txt',
+                   header=TRUE,fill = TRUE)
+colnames(data)[1:7] <- names(data)[2:8]
+data = data[-c(21),]
+data = data[,-c(8)]
+model <- lm(y ~ x1+x2 +x3 +x4 + x5,data = data)
+```
+
+## (a)  
+ The $95\%$ confidence interval for $\beta_3$ is $\hat \beta_3 \pm t_{(n-p,1-0.025)}*s.e.(\hat \beta_3)$:  
+```{r}
+coef <- summary(model)$coef
+bound_L <- coef[4,1] - qt(0.975,20-6)*coef[4,2]
+bound_U <- coef[4,1] + qt(0.975,20-6)*coef[4,2]
+kable(t(c(bound_L,bound_U)),col.names = NULL)
+```
+  
+ 由以上式子，得到 $95\%$ C.I. for $\beta_3$ is $(-3.713929\times 10^{-5},2.927368\times10^{-4})$.  
+ Similarly,the $95\%$ confidence interval for $\beta_5$ is $\hat \beta_5 \pm t_{(n-p,1-0.025)}*s.e.(\hat \beta_5)$:  
+```{r}
+bound_L <- coef[6,1] - qt(0.975,20-6)*coef[6,2]
+bound_U <- coef[6,1] + qt(0.975,20-6)*coef[6,2]
+kable(t(c(bound_L,bound_U)),col.names = NULL)
+```
+ 由以上式子，得到 $95\%$ C.I. for $\beta_5$ is $(-1.652198\times 10^{-5},2.998305\times10^{-4})$.  
+ By the way, 這邊可以使用 指令:"confint" 來找出每個 $\beta$ 的信賴區間:  
+```{r}
+confint(model,level = 0.95)
+```
+  
+## (b)  
+ The $95\%$ confidence interval for $\beta_3+2\beta_5$ is $\hat \beta_3 \pm t_{(n-p,1-0.025)}*s.e.(\hat \beta_3+\hat \beta_5)$  
+ ,where $s.e.(\hat \beta_3+\hat \beta_5)=\sqrt{\text{Var}(\hat\beta_3)+\text{Var}(2\hat\beta_5)+4\text{Cov}(\beta_3,\beta_5)}$.  
+$$
+\text{Cov}(\hat\beta_i,\hat\beta_j) = (X^TX)_{ij}^{-1}\hat\sigma^2 \Rightarrow \text{Cov}(\hat\beta_3,\hat\beta_5) = \hat\sigma^2(-2.612349\times10^{-9})
+$$
+```{r}
+X <- model.matrix(model)
+solve(t(X)%*%X)[4,6]
+```
+  
+ (以上為$(X^TX)_{35}^{-1}$的數值)  
+ 因此，我們可以得到 $95\%$ C.I. for $\beta_3+2\beta_5$ by the following:  
+```{r}
+sigma_hat <- summary(model)$sig
+sd <- sqrt(coef[4,2]^2+4*coef[6,2]^2 + 4*(-2.612349e-09)*sigma_hat^2)
+bound_L <- coef[4,1] + 2*coef[6,1] - qt(0.975,20-6)*sd
+bound_U <- coef[4,1] + 2*coef[6,1] + qt(0.975,20-6)*sd
+kable(t(c(bound_L,bound_U)),col.names = NULL)
+```
+  
+ $95\%$ C.I. for $\beta_3+2\beta_5$ is $(5.898666\times 10^{-5},7.632279\times10^{-4})$.  
+ 
+## (c)  
+ 紅點:(0,0) ; 藍點:$(\hat\beta_3,\hat\beta_5)$  
+ 虛線(x-axis):95% 信賴區間 for $\beta_3$  
+ 虛線(y-axis):95% 信賴區間 for $\beta_5$  
+```{r message=FALSE, warning=FALSE}
+library(ellipse)
+plot(ellipse(model,c(4,6)),lwd=3, type="l")
+points(model$coef[4],model$coef[6],
+       cex = 1.5,pch=15,col="blue")
+points(0,0,cex=1.5,pch=15,col= "red")
+abline(v=confint(model,level = 0.95)[4,],
+       lwd=3,lty=2)
+abline(h=confint(model,level = 0.95)[6,],
+       lwd=3,lty=2)
+```
+ 由 (a) (b) 可以得知，$\beta_3$ 與 $\beta_5$ 的信賴區間分別都會涵蓋 0 ，這代表著分別做檢定 :  
+$$
+\text{H}_0 : \beta_i = 0 \ \ \text{v.s.} \ \ \text{H}_1 : \beta_i \neq 0
+$$
+  
+ 都會得到這個結論: "Do not reject $\text{H}_0$ at significant level 0.05"。那如果要檢定:  
+$$
+\text{H}_0 : \omega =\{\beta \in \mathbb{R}^6:\beta_3 = \beta_5 =0\} \ \ \text{v.s.} \ \ \text{H}_1 : \Omega/\omega
+$$
+ 可觀察上面的 confidence region for $(\beta_3,\beta_5)$，是否有涵蓋到原點 $(0,0)$。這裡可以觀察到，此圖是會涵蓋原點！因此，Do not reject $\text{H}_0$ at significant level 0.05。  
+ 
+## (d)  
+ The confidence region of $(\beta_1,\beta_2,\beta_3,\beta_4,\beta_5)$ is satisfying the following:  
+$$
+(A(\hat{\boldsymbol{\beta}}- \boldsymbol{\beta}))^T(A(X^TX)^{-1}A^T)^{-1}(A(\hat{\boldsymbol{\beta}}- \boldsymbol{\beta})) \leq (5\hat\sigma^2)F_{5,20-6}(\alpha) \ \text{under H}_0-(*)
+$$
+ which implies the testing :  
+$$
+\text{H}_0 : \omega =\{\boldsymbol{\beta}:(\beta_1,\beta_2,\beta_3,\beta_4,\beta_5)=\mathbf{0}\} \ \ \text{v.s.} \ \ \text{H}_1 : \Omega/\omega
+$$
+ ,where $A = [\mathbf{0}_{5\times1} | \mathbf{I}_{5\times5}]$:$5\times6$ matrix, is equivalent to under the null hypothesis is true, examine whether $(*)$ holds.  
+ So,by the following,  
+```{r}
+A = matrix(0,nrow = 5,ncol = 6)
+for (i in 1:5){
+  A[i,i+1] =1
+}
+model_inverse <- solve(t(X)%*%X)
+statistic <- as.numeric(t(A%*%coef[,1]) %*% solve(A%*%model_inverse%*%t(A)) %*% A%*%(coef[,1]))
+critical_value <- 5*summary(model)$sig^2*qf(0.95,5,20-6)
+statistic - critical_value
+```
+  
+ 計算$(\hat{\boldsymbol{A\beta}}- \boldsymbol{0})^T(A(X^TX)^{-1}A^T)^{-1}(\hat{\boldsymbol{A\beta}}- \boldsymbol{0}) - (5\hat\sigma^2)F_{5,20-6}(\alpha=0.05) = 3.094621 >0$，代表$(*)$不成立，即得到結論:"Reject $\text{H}_0$ at significant level 0.05"。  
+ 
+## (e)  
+ let total non-volatile solids be $X_6 = X_3 - X_4$   
+ Model : $y_i = \beta_0+\beta_1X_{1i}+\beta_2X_{2i}+\beta_3(X_{4i}+X_{6i})+\beta_4X_{4i}+\beta_5X_{5i}+\epsilon_i$
+ 在進行檢定前，我們發現 $\text{Cor}(X_3,X_6) = 0.9999964 \approx 1$，這代表 $X_3$ 和 $X_6$ 存在共線性的性質。  
+```{r}
+cor(data$x3,data$x3-data$x4)
+```
+ 這意味著$X_6$的效應和$X_3$極度相似，so, the testing to this suspicion :  
+$$
+\text{H}_0 : \omega =\{\boldsymbol{\beta}:\beta_3 =0\} \ \ \text{v.s.} \ \ \text{H}_1 : \Omega/\omega
+$$
+ 這裡的檢定等價於利用 $\beta_3$的信賴區間來檢驗是否涵蓋0。由 (a) 可以得知，其區間是涵蓋0的，因此，Do not reject $\text{H}_0$ at significant level 0.05。  
+
+# Problem 2  
+ 
+## (a)
+```{r}
+data <- read.table("http://www.stat.nthu.edu.tw/~swcheng/Teaching/stat5410/data/houseprices.txt",
+                   header=TRUE)
+summary(data)
+```
+ 由以上的summary table，可以發現 Age 的 NA數量大約佔了總樣本數的四成($49/117 \approx 0.419$)，可能因為這組數據的房子，有很多陳舊已久的房子以至於其房屋年齡無從而知，加上非NA的Age樣本中，大約有75%的房屋年齡在20年以下，代表大部分採樣的年齡屬於年輕的一群，假如NA代表陳舊已久的房屋歲數的話，那只移除有NA的row data 來做分析，主要只會分析年輕房子的售價！因此，Age 這個predictor 無具代表性，應擇將其predictor移除會比較保險。  
+ 
+## (b)  
+ 由(a)的summary teble,會發現 Taxes 有 10 個NA值，由於NA佔的比例不高(10/117<0.1)，另外考量Tax為NA的可能性為房主逃稅，這種類型的房子不太值得去做分析，因此這裡將其10筆row data 給移除掉。於是整理以上，資料整合為:  
+```{r}
+data = data[,-c(3)]
+data = data[-c(which(is.na(data$Tax))),]
+```
+ 整合完後的資料為 non-NA data with size: 107 x 6  
+```{r}
+model <- lm(Price ~ . ,data=data)
+summary(model)
+```
+ 這裡得到模型:  
+ $\hat y_{\text{Price}} = 77.6954 + 0.2666X_{\text{SQFT}}+13.8581X_{\text{Features}}-3.3995X_{\text{NE}}-89.1245X_{\text{Corner}}+0.6627X_{\text{Tax}}$  
+ The 100(1-$\alpha$)% confidence interval for $\beta_i$ is $\hat \beta_i \pm t_{(107-6,1-\alpha)} * \text{s.e.}(\hat \beta_i)$,by  指令"confint"，可以分別得到 95%,99%的信賴區間:   
+```{r}
+confint(model,level=0.95)
+confint(model,level=0.99)
+```
+ 從summary of lm，可以看到Corner的 p-value =0.0382 > 0.01 但是 < 0.05。對於此檢定:  
+$$
+\text{H}_0:\beta_{\text{Corner}} = 0 \ \ \text{v.s.} \ \ \text{H}_1:\beta_{\text{Corner}} \neq 0
+$$
+ 如果 p-value 小於給定的顯著水準$\alpha$，應拒絕$\text{H}_0$，反之則接受$\text{H}_0$。故使用p-value來檢定$\beta_{\text{Corner}} = 0$與檢察其係數之信賴區間是否涵蓋0，兩者是等價的。從上面的信賴區間，95% C.I.:(-173.2835186,-4.9654323)沒有涵蓋0，但99% C.I.:(-200.5054895,22.2565386)有涵蓋0，與p-value推出的檢定結果一致。  
+ 
+## (c)  
+ 這題非預測這類型房屋的平均價格，應為對 future observation 的房價預測，因此其預測的信賴區間(預測區間) for $Y_{new}$ at $x_0=(SQFT = 2500,Features=5,NE=1,Corner = 1,Tax=1200)^T$為:  
+$$
+\hat Y_{\text{new}} \pm t_{(20-6,1-\alpha/2)}\times\hat\sigma\sqrt{1+x_0^T(X^TX)^{-1}x_0}, \ \text{where} \ X:\text{model matrix}
+$$
+ 可使用指令predict來計算其區間:  
+```{r}
+predict(model,data.frame(SQFT = 2500,Features=5,NE=1,
+                         Corner = 1,Tax=1200),
+        se=TRUE,interval = "prediction")
+```
+ 這裡預估這間房子的售價為 1516.361 (百美元)，以及其95%預測區間為(1162.761,1869.961)，即有95%的信心預估其價格介於(1162.761,1869.961)之間。  
+ 
+## (d)  
+ 由於這裡已知的資訊只有 SQFT = 2500，這裡我採用兩個方式來做預測並分別做分析:  
+ 
+* 內插(imterpolation) : 對Features、NE、Corner與Tax進行內插，使用(b)的模型來做預測  
+ 需要內插的值應落在資料涵蓋的範圍內，這樣預測結果才不太會受配適模型中不顯著效應變數的影響。由(a)的summary table可以觀察到，Tax存在離群值且有6個。  
+```{r}
+Q1 <- as.numeric(quantile(data$Tax,0.25))
+Q3 <- as.numeric(quantile(data$Tax,0.75))
+length(which(data$Tax>Q3+1.5*(Q3-Q1)))
+```
+ 為了避免受到離群值的影響，Tax的內插值設定為其中位數 731。另外，其餘predictors為類別型資料，內插值分別皆設定為其眾數。  
+```{r}
+Mode <- function(x) {
+  ux <- unique(x)
+  tab <- tabulate(match(x, ux))
+  ux[tab == max(tab)]
+}
+predict(model,data.frame(SQFT = 2500,
+                         Features=Mode(data$Features),
+                         NE=Mode(data$NE),
+                         Corner = Mode(data$Corner),
+                         Tax=median(data$Tax)),
+        se=TRUE,interval = "prediction")
+```
+ 最後我們得到預估值為 1280.809(百美元)。這裡要注意的是，因為內插是估計未知predictors的值，代表會產生隨機效應，所以計算出來的95%預測區間，其coverage probability不會真的等同於 0.95，這不符合我們題目所要找的 95%預測區間。  
+ 
+* Predictor 只保留 SQFT，然後配適模型: $y_{\text{Price}} = \beta_0 + \beta_1X_{\text{SQFT}}+\epsilon$  
+```{r}
+model <- lm(Price~ SQFT,data=data)
+summary(model)
+```
+ 由以上，我們得到配適模型: $\hat y_{\text{Price}} = 61.82322 + 0.60910\times X_{\text{SQFT}}$。  
+ 利用此模型來做預測:  
+```{r}
+predict(model,data.frame(SQFT = 2500),
+                         se=TRUE,
+                         interval = "prediction")
+```
+
+ 在只知道SQFT=2500的資訊下，預估這間房子的售價為  1584.563(百美元)，由於這裡沒有考慮其他predictors的隨機性，所以其95%預測區間為(1166.205,2002.921)，即有95%的信心預估其價格介於(1166.205,2002.921)之間。  
+ 因此，總結上述，預測值 = 1584.563，其95%預測的信賴區間為(1166.205,2002.921)。
+ 
