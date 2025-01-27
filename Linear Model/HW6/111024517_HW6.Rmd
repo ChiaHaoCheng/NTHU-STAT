@@ -1,0 +1,406 @@
+---
+title: "HW 6-Linear Model"
+author: 
+- 'ID : 111024517'
+- 'Name : 鄭家豪'
+date: due on 12/15
+geometry: left=3cm,right=3cm,top=2cm,bottom=2cm
+header-includes:
+  - \usepackage{leading}
+  - \leading{18pt}
+  - \usepackage{xeCJK}
+  - \setCJKmainfont{標楷體}
+  - \setCJKmonofont{標楷體}
+output:
+  pdf_document:
+    latex_engine: xelatex
+classoption: a4paper
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+ 
+# Problem 1  
+ 
+## Read data and fit linear model  
+ 
+ 這裡對於原資料檔的讀取進行一些調整，好方便讀取，並計算題目所需的response variable(100 $\times$(Y84-Y83)/Y83)，令其名稱為"**increase**":  
+```{r}
+data <- read.table("http://www.stat.nthu.edu.tw/~swcheng/Teaching/stat5410/data/salary.txt",
+                   header = T,fill = T)
+colnames(data) <- c(names(data)[2:7]," ")
+data <- data[,-7]
+increase <- 100*(data$Y84-data$Y83)/data$Y83
+data <- cbind(increase,data)
+```
+ 
+ 先配適一個 linear model: $y = X\beta+\epsilon, \ \ \text{where} \ \epsilon \sim N(0,\sigma^2 I)$  
+ 
+```{r}
+fit <- lm(increase~.-Y84-Y83,data=data)
+summary(fit)
+```
+ 
+```{r}
+shapiro.test(fit$res)
+```
+
+ 這裡得出，不符合 normality 假設，我們做Diagonstics 找出問題所在。  
+ 
+## Diagonstics(Leverage)  
+ 根據"rule of thumb"來找出哪些資料具有Leverage大的性質:  
+ 
+```{r}
+x <- model.matrix(fit)
+lev <- hat(x)
+plot(lev,ylab = "Leverages")
+abline(h=2*5/50)
+which(lev>2*5/50)
+```
+ 
+ 這裡，我們得知第1、2、13、19以及50筆資料具有大的leverage。  
+ 接著我們來診斷outlier  
+ 
+## Diagonstics(outlier)  
+ 
+ 要找出在此模型下的outlier，這裡我們呈現"raw residual"、"studentized residual"、"jacknife residual":  
+ 
+```{r echo=FALSE}
+par(mfrow = c(2,2))
+plot(fit$residuals,ylab = "Residual",
+     main = "Residual plot")
+plot(rstandard(fit),ylab = "stud. residual",
+     main = "Studentized Residual plot")
+plot(rstudent(fit),ylab = "jacknife residual",
+     main = "Jacknife Residual plot")
+```
+ 
+ 可以發現，這三張圖呈現的pattern都很相似，且可以發現在第1~第10筆觀察值之間，會存在明顯的outlier。我們使用multiple testing($\text{H}_0 : \text{no outlier in the n observations} \ \ \text{v.s.} \ \ \text{H}_1:\text{at least one outlier}$)來鑑別是否存在outlier(reject H0 if $|t_i|>t_{n-p-1}(\alpha/2n)$):  
+ 
+```{r}
+unique(which(abs(rstudent(fit)) > qt(1-0.05/(2*50),df=50-5-1)))
+```
+ 
+ 這裡結果顯示出:  
+ 在 $\alpha = 0.05$之下，這組資料存在離群值，其中第9筆觀察值是絕對值數值上最明顯的outlier。  
+ 接著我們檢查是否有 influential observation。
+ 
+## Diagonstics(influential)  
+ 
+ 因為 Cook's statistics/distances(scale and unit free) 是 residual 和 leverage 的線性組合，我們使用其來檢驗哪些觀察值是 influential observation:  
+ 
+```{r cook}
+cook <- cooks.distance(fit)
+plot(cook,ylab="Cook distances",main = "Cook plot")
+text(x=20, y=cook[9]+0.02, 
+     labels = c("outlier's cook=0.1512178"),
+     col="red")
+```
+ 
+ 這裡很明顯看出，沒有任何一個 Cook's statistics 是比 1 還要大，即使是 outlier 也一樣，我們來觀察 outlier 的 residual 值和 leverage各是多少:  
+ 
+```{r}
+fit$residuals[9]
+lev[9]
+```
+ 
+ 雖然其 residual 值很大，但 leverage 很小，所以 cook's distance of outlier 自然就不會很大。  
+ 因為這對於 fitting model 影響不大，這裡我不考慮將其 outlier 給移除掉。  
+ 
+ 我們來觀察 Residual plot，來看整體的 pattern。  
+ 
+## Residual plot  
+ 
+```{r echo=FALSE}
+plot(x=fit$fitted.values,
+     y=fit$residuals,
+     xlab = "y hat",ylab = "residauls",
+     main= "Residual plot")
+abline(0,0)
+```
+ 
+ 有些點對於觀察 residaul to $\hat y$ 來說很礙事，我們將其圖聚焦於比較多點集聚的地方，放大觀察:  
+```{r echo=FALSE}
+plot(x=fit$fitted.values,
+     y=fit$residuals,
+     xlab = "y hat",ylab = "residauls",
+     main= "Residual plot",xlim = c(0,30),
+     ylim = c(-40,40))
+abline(0,0)
+abline(a = 0,b = 1,lty=2,cex=0.8,col="red")
+abline(0,-1,lty=2,cex=0.8,col="red")
+text(x=15, y=25, 
+     labels = c("residual =  y hat"),
+     col="red")
+text(x=15, y=-25, 
+     labels = c("residual =  -y hat"),
+     col="red")
+```
+ 
+ 雖然有些許點是在紅線外，不過這裡很明顯觀察出，大部份的點是遵循 "|y| = x"的形式變化的，代表為 non-constant variance。為了使之 constant variance ，根據 LNp.7-11 ， $var(y_i) \propto [E(y_i)]^2$，因此進行 $y_i \ \to \ \text{log}(y_i)$ 的轉換。  
+ 
+```{r}
+min(data$increase)
+```
+ 
+ 在進行轉換前，先檢查 $y_i$ 的值是否都是大於0，由於最小值 = -27.90698，因此需要做平移使得 log 轉換成立。但在做平移前，我們先檢查 要平移的量值(27.91)所佔 Range of response 的比例:  
+```{r}
+27.91/(max(data$increase) - min(data$increase))
+```
+ 
+ 得出平移後，所占的比例約為 17.5% ，以比例來看不算很大的平移。由於不清楚資料背景的意義，假設其平移對 Response 不會造成太大的影響，建立以下模型:  
+ 
+$$
+\text{log}(y+27.91) = X \beta + \epsilon ,\ \ \text{where} \ \epsilon \sim N(0,\sigma^2 I)
+$$
+ 
+```{r}
+fit_transformation <- lm(log(increase+27.91) ~ . -Y84 -Y83,data = data)
+summary(fit_transformation)
+```
+ 
+```{r echo=FALSE}
+plot(x=fit_transformation$fitted.values,
+     y=abs(fit_transformation$residuals),
+     xlab = "y hat",ylab = "residauls",
+     main= "(transformation)Abs.Residual plot")
+abline(1.8,0,lty=2,cex=0.8,col="red")
+text(x=3.5, y=2.5, 
+     labels = c("residual =  constant"),
+     col="red")
+text(x=3.35, y=8.4, 
+     labels = c("outlier"),
+     col="red")
+```
+ 
+ 進行 log 轉換之後，雖然其模型解釋能力仍然沒有改善，以及在 Absolutely Residual plot 上 有一個點特別突兀，但整體來看比較有 constant variance 的感覺，這達到我們的目的。  
+ 
+# Problem 2  
+ 
+## Read data and check normality firstly  
+ 
+```{r}
+data <- read.table("http://www.stat.nthu.edu.tw/~swcheng/Teaching/stat5410/data/octane.txt",header = T)
+head(data)
+```
+ 
+ 這組資料的 response variables 為量化連續型資料。  
+ 接著檢查 Q-Q plot:  
+```{r echo=FALSE}
+qqnorm(data$rating)
+qqline(data$rating)
+```
+ 
+ 雖然後面與前面的部分有點偏離直線，但整體而言還算是在一條線上，故推測符合 normality 的假設。我們來做 diagonstics 來驗證是否有不正常的狀況:  
+ 
+## Diagonstics(Leverage)  
+ 
+ 先配適一個 linear model: $y_{\text{rating}} = X\beta+\epsilon, \ \ \text{where} \ \epsilon \sim N(0,\sigma^2 I)$  
+ 
+```{r}
+fit <- lm(rating ~ . ,data = data)
+summary(fit)
+```
+ 
+ 根據"rule of thumb"來找出具有Leverage大的資料:  
+ 
+```{r}
+x = model.matrix(fit)
+lev <- hat(x)
+plot(lev,ylab = "Leverages")
+abline(h=2*5/82)
+which(lev>2*5/82)
+```
+ 
+ 這裡觀察出，第 44, 66,71,72,75~77 筆資料具有leverage 大的性質。  
+ 
+## Diagonstics(outlier)  
+ 
+ 要找出在此模型下的outlier，這裡我們呈現"raw residual"、"studentized residual"、"jacknife residual":  
+ 
+```{r echo=FALSE}
+par(mfrow = c(2,2))
+plot(fit$residuals,ylab = "Residual",
+     main = "Residual plot")
+plot(rstandard(fit),ylab = "stud. residual",
+     main = "Studentized Residual plot")
+plot(rstudent(fit),ylab = "jacknife residual",
+     main = "Jacknife Residual plot")
+```
+ 
+ 乍看之下，感覺沒 outlier，我們用程式來檢驗看看是否存在outlier(given $\alpha=0.05$):  
+
+$$
+\text{H}_0 : \text{no outlier in the n observations} \ \ \text{v.s.} \ \ \text{H}_1:\text{at least one outlier}
+$$ 
+```{r}
+unique(which(abs(rstudent(fit)) > qt(1-0.05/(2*82),df=50-5-1)))
+```
+ 
+ 其critical value = $t_{n-p-1}(\alpha/2n)=3.692514$，由於計算結果取絕對值後沒有超過臨界值，故無法說明這組數據有outlier。  
+ 
+## Diagonstics(influential)  
+ 
+ 利用 Cook's statsitics/distances 來找出 influential observations:  
+ 
+```{r}
+cook <- cooks.distance(fit)
+plot(cook,ylab="Cook distances",main = "Cook plot")
+```
+ 
+ 這裡很明顯看出，沒有任何一個 Cook's statistics 是比 1 還要大的，因此沒有 highly influential observation。  
+ 
+## Residual plot  
+ 
+ 我們來觀察此模型的 residual plot:  
+ 
+```{r echo=FALSE}
+plot(x=fit$fitted.values,
+     y=fit$residuals,
+     xlab = "y hat",ylab = "residauls",
+     main= "Residual plot")
+abline(0,0)
+```
+ 
+ 就觀察來看，看不太出 non-constant variance 的感覺。  
+ 我們來觀察 Partial Residual plot:  
+ 
+```{r echo=FALSE}
+par(mfrow=c(2,2))
+plot(x = data$A1,
+     y = fit$residuals+fit$coefficients[2]*data$A1,
+     xlab = "A1",ylab = "res. + coef*A1",
+     main = "Partial residual(A1)")
+abline(a = 0,b = fit$coefficients[2],col="red")
+plot(x = data$A2,
+     y = fit$residuals+fit$coefficients[3]*data$A2,
+     xlab = "A2",ylab = "res. + coef*A2",
+     main = "Partial residual(A2)")
+abline(a = 0,b = fit$coefficients[3],col="red")
+plot(x = data$A3,
+     y = fit$residuals+fit$coefficients[4]*data$A3,
+     xlab = "A3",ylab = "res. + coef*A3",
+     main = "Partial residual(A3)")
+abline(a = 0,b = fit$coefficients[4],col="red")
+plot(x = data$A4,
+     y = fit$residuals+fit$coefficients[5]*data$A4,
+     xlab = "A4",ylab = "res. + coef*A4",
+     main = "Partial residual(A4)")
+abline(a = 0,b = fit$coefficients[5],col="red")
+```
+ 
+ 從這四張圖來看，感覺沒有很明顯的 mean curvature 的現象。  
+ 最後，我們可以用 shapiro.test() 指令來檢驗這模型的常態假設是否顯著:  
+```{r}
+shapiro.test(fit$residuals)
+```
+ 
+ 其 p-value = 0.7176 > 0.05，故不拒絕 $H_0$:模型符合 normal。我們這裡並沒有做任何補救措施(remedy)。
+ 
+# Problem 3  
+ 
+## Read data  
+```{r}
+data <- read.table("http://www.stat.nthu.edu.tw/~swcheng/Teaching/stat5410/data/vehicle.txt",
+                   header = T)
+```
+ 
+## (a)  
+ Model:  
+$$
+Y_{\text{ACC}} = \beta_0 + \beta_1X_{\text{WHP}}+\beta_2X_{\text{SP}}+\beta_3X_{\text{G}}+\epsilon \ , \ \text{where} \ \epsilon \sim N(0,\sigma^2 I)
+$$
+ 
+```{r}
+fit <- lm(ACC ~ . ,data = data)
+summary(fit)
+```
+ 
+ 我們得到模型:  
+$$
+\hat Y_{\text{ACC}} = 7.19949 -0.01838X_{\text{WHP}}-0.09347X_{\text{SP}}-0.15548X_{\text{G}}
+$$
+ 
+ Partial residual plot:  
+ 
+```{r echo=FALSE}
+par(mfrow=c(2,2))
+plot(x = data$WHP,
+     y = fit$residuals+fit$coefficients[2]*data$WHP,
+     xlab = "WHP",ylab = "res. + coef*WHP",
+     main = "Partial residual(WHP)")
+abline(a = 0,b = fit$coefficients[2],col="red")
+plot(x = data$SP,
+     y = fit$residuals+fit$coefficients[3]*data$SP,
+     xlab = "SP",ylab = "res. + coef*SP",
+     main = "Partial residual(SP)")
+abline(a = 0,b = fit$coefficients[3],col="red")
+plot(x = data$G,
+     y = fit$residuals+fit$coefficients[4]*data$G,
+     xlab = "G",ylab = "res. + coef*G",
+     main = "Partial residual(G)")
+abline(a = 0,b = fit$coefficients[4],col="red")
+```
+ 
+## (b)  
+ 觀察 WHP-residual 之間的關係:  
+```{r echo=FALSE}
+plot(x = data$WHP,
+     y = fit$residuals,
+     xlab = "WHP",ylab = "Residual plot",
+     main = "Residual(x-axis:WHP)")
+```
+ 
+ 從這裡會發現到，似乎還存在二次項的效應，這裡嘗試增加一個幾變數項: $\text{WHP}^2$  
+ 
+```{r}
+fit_add <- lm(ACC ~ . + I(WHP^2),data = data)
+summary(fit_add)
+```
+ 得到模型:  
+$$
+\hat Y_{\text{ACC}} = 10.011 -0.09569X_{\text{WHP}}-0.1004X_{\text{SP}}-0.2236X_{\text{G}}+2.71\times10^{-4}\times \text{WHP}^2
+$$
+ 接著類似於 (a) ，劃出每個解釋變數對應的 partial residual plot:  
+ 
+```{r echo=FALSE}
+par(mfrow=c(2,2))
+plot(x = data$WHP,
+     y = fit_add$residuals+fit_add$coefficients[2]*data$WHP,
+     xlab = "WHP",ylab = "res. + coef*WHP",
+     main = "Partial residual(WHP)")
+abline(a = 0,b = fit_add$coefficients[2],col="red")
+plot(x = data$SP,
+     y = fit_add$residuals+fit_add$coefficients[3]*data$SP,
+     xlab = "SP",ylab = "res. + coef*SP",
+     main = "Partial residual(SP)")
+abline(a = 0,b = fit_add$coefficients[3],col="red")
+plot(x = data$G,
+     y = fit_add$residuals+fit_add$coefficients[4]*data$G,
+     xlab = "G",ylab = "res. + coef*G",
+     main = "Partial residual(G)")
+abline(a = 0,b = fit_add$coefficients[4],col="red")
+```
+ 
+ 可以發現，加入 $WHP^2$ 項後的新模型，似乎比較合適。  
+ 
+## (c)  
+ 我們觀察一下 (a) 三個 Partial Residual plot，很明顯地看出 SP 的 Partial Residual，發現 Variance 會隨著 SP 增加而有非遞增的現象，其他兩個 Partial Residual plot 並沒有很明顯的 non-constant variance 狀況。再來加上 (b) 的分析，推測 WHP 可能是解釋這情況的一個關鍵，這裡試著將 WHP 以分群的形式，繪至 SP 的 Partial residual plot 來觀察有甚麼狀況。  
+ 
+```{r}
+levels(factor(data$WHP))
+```
+ 
+```{r echo=FALSE}
+plot(x = data$SP,
+     y = fit$residuals+fit$coefficients[3]*data$SP,
+     xlab = "SP",ylab = "res. + coef*SP",
+     main = "Partial residual(SP)",
+     pch = c("1","2","3","4")[as.numeric(factor(data$WHP))])
+abline(a = 0,b = fit$coefficients[3],col="red")
+legend(50,0,legend = c("1 : 20.5","2 : 40","3 : 84.5",
+                       "4 : 257"))
+```
+ 
+ 可以發現到，直線上方幾乎都是 WHP = 20.5、257 ; 下方則幾乎是 WHP = 40 、 84.5。另外觀察 (b) 中， SP 的 Partial Residual plot，會發現到 non-constant variance 的性質消失，推測原本 error 的部分，包含 $\text{WHP}^2$的效應，所以在 (b) 加進來 $\text{WHP}^2$ 項之後，這個效應就移至模型中規律的部分。另外，考量到 WHP 只有四個值，這裡我們是當連續變數來做分析，這意味著 WHP = 20.5 、 257 是相當遠離平均值(77.38)，故加入 WHP 的二次項會使得 ， WHP = 最小或最大值時，SP 的 Partial Residual plot 中 ，會產生極大 residual的現象將被解決，自然會回到 constant variance 的狀況。  
