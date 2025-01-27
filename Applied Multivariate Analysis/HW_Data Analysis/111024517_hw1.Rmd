@@ -1,0 +1,95 @@
+---
+title: "AMSA-HW1"
+author: 
+- 'ID : 111024517'
+- 'Name : 鄭家豪'
+date: due on 02/23
+geometry: left=3cm,right=3cm,top=2cm,bottom=2cm
+header-includes:
+  - \usepackage{leading}
+  - \leading{18pt}
+  - \usepackage{xeCJK}
+  - \setCJKmainfont{標楷體}
+  - \setCJKmonofont{標楷體}
+output:
+  pdf_document:
+    latex_engine: xelatex
+classoption: a4paper
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+```
+
+# About Data  
+
+Accroding to WHO,stroke is the 2nd leading cause of death globally.  
+This dataset is used to predict whether a patient is likely to get stoke based on the 11 clinical features.
+
+The resourse : https://www.kaggle.com/datasets/fedesoriano/stroke-prediction-dataset
+
+
+# Attribute Information
+ 
+* (discrete)id: unique identifier
+* (discrete)gender: "Male", "Female" or "Other"
+* (continuous)age: age of the patient
+* (discrete)hypertension: 0 if the patient doesn't have hypertension, 1 if the patient has hypertension
+* (discrete)heart_disease: 0 if the patient doesn't have any heart diseases, 1 if the patient has a heart disease
+* (discrete)ever_married: "No" or "Yes"
+* (discrete)work_type: "children", "Govt_jov", "Never_worked", "Private" or "Self-employed"
+* (discrete)Residence_type: "Rural" or "Urban"
+* (continuous)avg_glucose_level: average glucose level in blood
+* (continuous)bmi: body mass index
+* (discrete)smoking_status: "formerly smoked", "never smoked", "smokes" or "Unknown"
+* (discrete)stroke: 1 if the patient had a stroke or 0 if not
+
+# Simple EDA
+
+## Check data
+
+```{r echo=FALSE}
+data <- read.csv("111024517_healthcare-dataset-stroke-data.csv",
+                 header = T)
+str(data)
+```
+
+ From the above , we find the "NA" value in bmi variable.We chose to remove all NA's , assuming that they are not important for the analysis . Then , obtained :  
+ 
+```{r removing Na value, echo=FALSE}
+data_new <- data[-c(which(data$bmi %in% c("N/A"))),]
+data_new$bmi <- as.numeric(data_new$bmi)
+str(data_new)
+```
+ 
+ Here we have 4909 observations and 12 variables after removing the row data containing the NA values.
+ 
+## Scatter plot(Analysis of the sampling distribution)
+```{r echo=FALSE}
+#scatter plot (x:age;y:bmi;factor=gender)
+ggplot(data_new, aes(x = age, y = bmi, color = gender)) +
+  geom_jitter()
+```
+
+ 這裡展示出 age-bmi 的 scatter plot 且以 gender來區別每個點的散佈狀況，可以大致上觀察出，年齡對於男女比例是差不多的且女生的BMI相對男生沒有明顯的落差，可能意味著收集資料時，針對不同年齡的男女bmi落差不會很顯著。不過有幾個 outlier 很明顯有所區別，其BMI值接近 100，屬於男性。  
+ 
+## Boxplot(Analysis of information on smoking habits)
+```{r echo=FALSE}
+#boxplot ((x:gender;y:bmi;factor=stroke)
+ggplot(data_new, aes(x = smoking_status, y = bmi, color = as.factor(stroke))) +
+  geom_boxplot()
+```
+ 
+ 這裡展示出 smoking_status-BMI 的 boxplot 且以 中風與否來做區別，主要是想了解，對於4種不同抽菸習慣，基於中風情況不同，bmi分布是否相似 ? 從上面可以看出，除了未知抽菸習慣有明顯的一點不同外，其他三種抽菸習慣的分布都蠻相似的。  
+ 
+## Bubble plot(Analysis of information on glucose)
+```{r echo=FALSE}
+#Bubble plot (x:age ; y=agl;factor = stroke;size = bmi)
+ggplot(data_new, aes(x = age, y =avg_glucose_level, size = bmi,color = as.factor(stroke))) +
+  geom_point(alpha = 0.5) +
+  scale_size(name = "bmi", range = c(1, 10))
+```
+
+ 這裡展示出以 bmi大小表示 bubble形狀，age-血糖 的 Bubble plot ， 另外以中風與否來做區別。  
+ 這裡可以看出一些資訊，年齡大且平均血糖較高的人，較容易得到中風。另外，Bmi並沒有對於中風與否提供太明顯的區別，因為沒有中風的人當中，具有高Bmi的人是佔多數，以及中風的人當中，bmi值似乎都差不多。
