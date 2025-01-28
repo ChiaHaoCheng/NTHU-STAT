@@ -20,7 +20,7 @@
 方法: (Block) Coordinate Descent algorithm、Alternating Direction Method of Multipliers (ADMM) algorithm 
 
 ## HW5:  
-目標: Use EM algorithm to estimate parameters for mixture modeling problem  
+目標: Estimating parameters for mixture modeling problem  
 方法: Expectation–maximization algorithm、k-means clustering
 
 
