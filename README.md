@@ -1,5 +1,6 @@
 # NTHU-STAT  
 2022/09 ~ 2024/06 期間於國立清華大學統計學研究所碩士班的課程作業 
+
 碩一上（GPA:3.83）  
   1. 數理統計 Mathematical Statistics: A  
   2. 線性模式 Linear Models: A-  
