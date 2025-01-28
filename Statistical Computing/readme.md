@@ -16,7 +16,7 @@
 方法: Monte Carlo method
 
 ## HW4:  
-目標: Use any optimization method to solve problem (Estimation of parameters, the minimum of function)
+目標: Use any optimization method to solve problem (Estimation of parameters, the minimum of function)  
 方法: (Block) Coordinate Descent algorithm、Alternating Direction Method of Multipliers (ADMM) algorithm 
 
 ## HW5:  
