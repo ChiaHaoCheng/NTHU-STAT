@@ -1,0 +1,512 @@
+---
+title: "Reliability Analysis-HW2"
+author: 
+- 'ID : 111024517'
+- 'Name : 鄭家豪'
+date: due on 03/22
+geometry: left=3cm,right=3cm,top=2cm,bottom=2cm
+header-includes:
+  - \usepackage{leading}
+  - \leading{18pt}
+  - \usepackage{xeCJK}
+  - \setCJKmainfont{標楷體}
+  - \setCJKmonofont{標楷體}
+output:
+  pdf_document:
+    latex_engine: xelatex
+classoption: a4paper
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,comment = "")
+library(MASS)
+```
+
+# Problem 1
+In the test, 25 controls were put on test and run until failure or until n=30 thousand cycles had been accumulated. Failures occurred at t=5, 21, and 28 thousand cycles. The other 22 controls did not fail by the end of the test.
+
+## (a)
+The empirical F(t) is 
+$$
+\hat{F}(5) =  1/25 ; \hat{F}(21) = 2/25 ; \hat{F}(28) = 3/25
+$$
+And the plot:
+```{r}
+x <- c(0,5,21,28,30)
+y <- c(0,1/25,2/25,3/25,3/25)
+plot(x, y, type = "s", xlab = "t", ylab = "F(t)",lwd=2,
+     xlim = c(0,30),ylim=c(-0.05,0.2),
+     main="nonparametric CDF plot")
+segments(x0 = x[-c(1,5)],y0 = y[-c(4,5)],
+         x1 = x[-c(1,5)],y1 = y[-c(1,5)],lty = 2,col = "white")
+points(x[-c(1,5)], y[-c(1,5)], pch = 19, col = "red")
+text(x=x[-c(1,5)], y=y[-c(1,5)], 
+     labels = paste("(", x[-c(1,5)], ", ", y[-c(1,5)], ")", sep = ""),
+     pos = 3)
+points(x[-c(1,5)], y[-c(4,5)], pch = 1, col = "blue")
+```
+
+## (b)
+For a fixed t,$X=n\hat{F}(t) \sim \text{Bin}(n,F(t))$.
+The conservative confidence interval I choose is Clopper-Pearson interval:$[\text{b}_{\alpha/2,x,n-x+1},\text{b}_{1-\alpha/2,x+1,n-x}],\text{where b is the quantile of Beta distribution.}$
+The CI for desired probability is
+```{r eval=FALSE}
+#wrong
+CI_CP <- function(alpha,sample){
+  lower <- qbeta(p = alpha/2,shape1 = 30*sample,shape2 = 30-30*sample+1)
+  upper <- qbeta(p = 1-alpha/2,shape1 = 30*sample+1,shape2 = 30-30*sample)
+  result <- cbind(lower,upper)
+  colnames(result) <- c("lower","upper")
+  rownames(result) <- c("t=5","t=21","t=28")
+  return(result)
+}
+knitr::kable(CI_CP(0.05,y[-c(1,5)]),escape = FALSE)
+```
+
+```{r}
+# correct
+x = 3 ## total fail number = 3 
+CI_CP <- function(alpha,sample){
+  n = 25
+  lower <- qbeta(p = alpha/2,shape1 = sample,shape2 = n-sample+1)
+  upper <- qbeta(p = 1-alpha/2,shape1 = sample+1,shape2 = n-sample)
+  result <- cbind(lower,upper)
+  return(result)
+}
+CI_CP(0.05,3)
+```
+
+## (c)
+The 100(1-$\alpha$)% CI using the Jeffrey method is
+$[\text{b}_{\alpha/2,x+1/2,n-x+1/2},\text{b}_{1-\alpha/2,x+1/2,n-x+1/2}]$,
+$\text{where b is the quantile of Beta distribution.}$
+```{r eval=FALSE}
+## wrong
+CI_Jef <- function(alpha,sample){
+  lower <- qbeta(p = alpha/2,shape1 = 30*sample+1/2,shape2 = 30-30*sample+1/2)
+  upper <- qbeta(p = 1-alpha/2,shape1 = 30*sample+1/2,shape2 = 30-30*sample+1/2)
+  result <- cbind(lower,upper)
+  colnames(result) <- c("lower","upper")
+  rownames(result) <- c("t=5","t=21","t=28")
+  return(result)
+}
+knitr::kable(CI_Jef(0.05,y[-c(1,5)]),escape = FALSE)
+```
+
+```{r}
+# correct
+x = 3 ## number of failure = 0.12*25 
+CI_Jef <- function(alpha,sample){
+  n=25
+  lower <- qbeta(p = alpha/2,shape1 = sample+1/2,shape2 = n-sample+1/2)
+  upper <- qbeta(p = 1-alpha/2,shape1 = sample+1/2,shape2 = n-sample+1/2)
+  result <- cbind(lower,upper)
+  return(result)
+}
+CI_Jef(0.05,3)
+```
+
+## (d)
+The 100(1-$\alpha$)% CI using the Jeffrey method is  $\hat{F}(t) \pm z_{\alpha/2} \times \sqrt{\dfrac{\hat{F}(t)(1-\hat{F}(t))}{n}}$
+```{r eval=FALSE}
+# wrong
+CI_Wald <- function(alpha,sample){
+  lower <- sample-qnorm(1-alpha/2,0,1)*sqrt(sample*(1-sample)/30)
+  upper <- sample+qnorm(1-alpha/2,0,1)*sqrt(sample*(1-sample)/30)
+  result <- cbind(lower,upper)
+  colnames(result) <- c("lower","upper")
+  rownames(result) <- c("t=5","t=21","t=28")
+  return(result)
+}
+knitr::kable(CI_Wald(0.05,y[-c(1,5)]),escape = FALSE)
+```
+
+```{r}
+# correct
+CI_Wald <- function(alpha,Fhat){
+  n=25
+  l <- Fhat-qnorm(1-alpha/2,0,1)*sqrt(Fhat*(1-Fhat)/n)
+  lower <- ifelse(l<0,0,l)
+  upper <- Fhat+qnorm(1-alpha/2,0,1)*sqrt(Fhat*(1-Fhat)/n)
+  result <- cbind(lower,upper)
+  return(result)
+}
+CI_Wald(0.05,0.12)
+```
+
+## (e)
+**why?**
+```{r}
+# correct
+CI_above <- rbind(CI_CP(0.05,3),CI_Jef(0.05,3),CI_Wald(0.05,0.12))
+summary <- data.frame("Method"=c("Clopper-Pearson","Jeffrey","Wald"),
+                      "lower"=CI_above[,1],"upper"=CI_above[,2],
+                      "length"=CI_above[,2]-CI_above[,1])
+knitr::kable(summary)
+```
+
+The Wald interval for binomial proportion is derived based on the asymptotic distribution of MLE.When the sample size is small or the sample proportion is close to 0 or 1,the statistical inference(like coverage probability) may not be good.
+For the CI derived from Clopper-Pearson or Jeffrey's method,they construct the exact confidence interval.So,in such cases,$\hat{F}(5)=0.04$ and $\hat{F}(21)=0.08$ are both close to 0,the Clopper-Pearson or Jeffrey's method would be preferred over the Wald interval for constructing a confidence interval for the binomial proportion.
+
+## (f)
+**(wrong)**
+~~Let X be the failure time of units,$X \sim \text{Exp}(\lambda=2.3),\text{the density }f(x)=2.3\exp{(-2.3x)},x>0.$~~
+~~$P(X\leq365\times10) = \int_{0}^{3650}f(x)dx\approx1$,which means that the probability of devices would fail in 10 years of operation is very close to 1.Therefore,the manufacturer should say that we will focu on improving the reliability of the product and providing good after-sales services to avoid customer dissatisfaction.~~
+
+**(correct)**
+The product use 10 × 365 × 2.3/1000 = 8.395 thousand of cycles in 10 years.
+So,the fraction of failure is P(T < 8.395) = 1/25=0.04.
+
+
+## (g)
+**(wrong)**
+~~Assume that there have different rates,$\lambda_1,\lambda_2$ ,and X : failure time of units.~~
+$$
+\begin{aligned}
+\text{The density of X,f(x)} = p\times f_1(x)+(1-p)\times f_2(x),\text{where} \ & p:\text{unknown or known weight proportion} \\
+& f_i(x):\text{the p.d.f. of Exp}(\lambda_i) 
+\end{aligned}
+$$
+$$
+\begin{aligned}
+& F(x)=P(X\leq x) = p(1-\exp{(-\lambda_1x)})+(1-p)(1-\exp{(-\lambda_2x)}) \\
+& E(X) = \int_{0}^{\infty}(1-F(x))dx = p/\lambda_1+(1-p)/\lambda_2 \\
+& S(x) = 1-F(x) = pe^{-\lambda_1x}+(1-p)e^{-\lambda_2x} \\
+& \text{h.f. }\lambda(x)=\dfrac{p\lambda_1e^{-\lambda_1x}+(1-p)\lambda_2e^{-\lambda_2x}}{pe^{-\lambda_1x}+(1-p)e^{-\lambda_2x}} 
+\end{aligned}
+$$
+~~From the above,we see that the expected value can be obtained from the weights,and the hazard rate function is not constant when use rate varies in the population of units.~~
+
+**(correct)**
+Suppose that the failure time in **cycles** is denoted by C with a cdf $F_C(c)$ and the failure time in days is denoted by T with cdf $F_T(t)$.Then,conditional on a fixed use rate of r cycles per day,T=C/r.That is ,the cdf of T is $F_T(t)=F_C(tr)$.  
+Now,if there is a pooulation of K groups each having it own use rate $r_k$ and the population of units in group k is $\pi_k$,then the cdf for the population  
+$F_T(t) = \sum_{k=1}^{K}\pi_kF_C(tr_k)$.  
+This is known as a discrete mixture distribution.
+
+# 2.
+## (a)
+Based on this information,we can infer about the distribution of silicon photodiode detectors lifetime.
+Thus,it could be used to construct the statistical models to predict the probability of lifetime at different time intervals.This may be more suitable for statisticians or reliability engineers to study it.
+
+## (b)
+```{r eval=FALSE}
+# wrong
+data_2 <- read.csv("PhotoDetector.csv",header = T)
+x <- c(0,2500,3000,3500,3600,3700,3800,3900)
+y <- fractions(c(0,1/28,2/28,3/28,4/28,5/28,6/28,6/28))
+plot(x,y,col=0,
+     xlim=c(0,3950),ylim=c(-0.01,0.25),
+     xlab="t",ylab="F(t)",lwd=2,
+     main="nonparametric CDF plot")
+for(i in 1:6){
+  lines(x[i:(i+1)],y[c(i,i)],lwd=2.5)
+}
+points(x[-c(1,8)], y[-c(1,8)], pch = 19, col = "red")
+text(x=x[-c(1,8)], y=y[-c(1,8)], 
+     labels = paste("(", x[-c(1,8)], ", ", y[-c(1,8)], ")", sep = ""),
+     pos = 3)
+```
+
+```{r}
+# correct
+data_2 <- read.csv("PhotoDetector.csv",header = T)
+x <- c(0,2500,3000,3500,3600,3700,3800,3900)/1000
+y <- c(0,1/28,2/28,4/28,5/28,6/28,7/28,7/28)
+plot(x,y,col=0,
+     xlim=c(0,3.95),ylim=c(-0.01,0.3),
+     xlab="t:thousand",ylab="F(t)",lwd=2,
+     main="nonparametric CDF plot")
+for(i in 1:6){
+  lines(x[i:(i+1)],y[c(i,i)],lwd=2.5)
+}
+points(x[-c(1,8)], y[-c(1,8)], pch = 19, col = "red")
+text(x=x[-c(1,8)], y=y[-c(1,8)], 
+     labels = paste("(", x[-c(1,8)], ", ", fractions(y[-c(1,8)]), ")", sep = ""),
+     pos = 3)
+```
+
+## (c)
+**(wrong)**
+~~By Greenwood's formula,~~
+$$
+\hat{\text{Var}}(\hat{F}(t_i)) = (\hat{S}(t_i))^2 \sum_{j:t_j \leq t_i} \dfrac{\hat{p}_j}{n_j(1-\hat{p}_j)},\text{where }\hat{p}_j=\frac{d_j}{n_j}
+$$
+```{r eval=FALSE}
+#wrong
+d <- c(1,1,2,1,1,1) # num. of failed 
+n <- c(27,26,24,23,22,21) # num. of entered
+S <- 1-y[-c(1,8)] #each survival
+est_VarF <- 0
+for (i in 1:length(d)){
+  est_VarF[i] <- S[i]*sum(d[1:i]/(n[1:i]*(n[1:i]-d[1:i])))
+}
+
+result <- data.frame("time"=x[-c(1,8)],"Failed"=d,
+                     "Entered"=n,
+                     "F"=y[-c(1,8)],
+                     "est"=est_VarF)
+knitr::kable(result,row.names = FALSE,
+             col.names = c(colnames(result)[-c(4,5)],
+                           "$\\hat{F}(t_i)$",
+                           "$\\text{Var}(\\hat{F}(t_i))$"))
+```
+
+**(correct)**
+This is inspection data,its variance:  
+$$
+\dfrac{\hat F(t_i)(1-\hat F(t_i)}{n}
+$$
+
+With logit trandformation,the 100(1-$\alpha$)% CI for logit($\hat F(t)$) is  
+$$
+\log\frac{\hat F(t)}{1-\hat F(t)}  \pm z_{1-\alpha/2} \times (\hat F(t)(1-\hat F(t)))^{-1} \times \text{s.e.}_{\hat F(t)}
+$$
+
+```{r}
+# correct
+d <- c(1,1,2,1,1,1) # num. of failed 
+n <- c(27,26,24,23,22,21) # num. of entered
+S <- 1-y[-c(1,8)] #each survival
+est_VarF <- y[-c(1,8)]*(1-y[-c(1,8)])/28
+l.lower <- y[-c(1,8)]/(y[-c(1,8)]+(1-y[-c(1,8)])*exp(qnorm(p = 0.975) *1/(y[-c(1,8)]*(1-y[-c(1,8)]))*sqrt(est_VarF)))
+l.upper <- y[-c(1,8)]/(y[-c(1,8)]+(1-y[-c(1,8)])/exp(qnorm(p = 0.975) *1/(y[-c(1,8)]*(1-y[-c(1,8)]))*sqrt(est_VarF)))
+result <- data.frame("t(i-1)"=c(x[-c(8)]),
+                     "t(i)"=c(x[-c(1,8)],""),
+                     "Failed"=c(d,0),
+                     "Entered"=c(28,n),
+                     "F"=c(y[-c(1)]),
+                     "var"=c(est_VarF,est_VarF[6]),
+                     "lower(logit)"=c(l.lower,l.lower[6]),
+                     "upper(logit)"=c(l.upper,l.upper[6]))
+knitr::kable(result,row.names = FALSE,
+             col.names = c("$t_{i-1}$",
+                           "$t_i$",
+                           colnames(result)[-c(1,2,5,6,7,8)],
+                           "$\\hat{F}(t_i)$",
+                           "$\\text{Var}(\\hat{F}(t_i))$",
+                           colnames(result)[c(7,8)]))
+
+```
+
+## (d)(e)
+
+* pointwise 95% CI: $\hat{F}(t_i) \pm z_{(0.975)}\times se_{\hat{F}}(t_i)$  
+* simultaneous 95% CI:$\hat{F}(t_i) \pm 3.31\times se_{\hat{F}}(t_i)$,where 3.31 = $e_{(0.01,0.99,0.975)}$.  
+```{r eval=FALSE}
+# wrong
+plot(result[,1],result[,4],col=0,xlim=c(2400,3850),ylim=c(-0.1,1.1),
+     xlab="t",ylab="F(t)")
+Vi = result[,5]
+e=3.31
+for(i in 1:5){
+  lines(x=result[i:(i+1),1],y=result[c(i,i),4],lwd=2.5)
+  lines(x=result[i:(i+1),1],
+        y=result[c(i,i),4]+qnorm(0.975)*sqrt(Vi)[c(i,i)],
+        lty=5,col=4,lwd=2.5)
+  lines(x=result[i:(i+1),1],
+        y=result[c(i,i),4]-qnorm(0.975)*sqrt(Vi)[c(i,i)],
+        lty=5,col=4,lwd=2.5)
+  lines(x=result[i:(i+1),1],
+        result[c(i,i),4]+e*sqrt(Vi)[c(i,i)],
+        lty=5,col="purple",lwd=2.5)
+  lines(x=result[i:(i+1),1],
+        result[c(i,i),4]-e*sqrt(Vi)[c(i,i)],
+        lty=5,col="purple",lwd=2.5)
+}
+abline(h=c(0,1),lwd=1,col="gray")
+legend(x=2500,y=1,c("pointwise","simultaneous"),
+       col=c(4,"purple"),lwd=2.5)
+```
+
+```{r}
+#correct
+par(mfrow=c(1,2))
+### plot 1
+plot(as.numeric((result[,2])[-7]),result[1:6,5],col=1,
+     xlim=c(2.4,3.85),ylim=c(-0.1,1),xlab="t",ylab="F(t)",
+     pch=16,main="\\hat{F} and their CIs without logit")
+Vi = result[,6]
+e=3.31
+p.l <- ifelse((result[,5])[-7] - qnorm(p = 0.975)*sqrt(Vi[-7]) <= 0,0,(result[,5])[-7] - qnorm(p = 0.975)*sqrt(Vi[-7]))
+p.u <- result[,5][-7] + qnorm(p = 0.975)*sqrt(Vi[-7])
+s.l <- ifelse((result[,5])[-7] -e*sqrt(Vi[-7]) <= 0,0,(result[,5])[-7] -e*sqrt(Vi[-7]))
+s.u <- (result[,5])[-7] +e*sqrt(Vi[-7])
+points(x = as.numeric((result[,2])[-7]),y=p.l,
+       col=4,type="p",lty=2,pch=24) #pointwise lower
+points(x = as.numeric((result[,2])[-7]),y=p.u,
+       col=4,type="p",lty=2,pch=25) # pointwise upper
+
+points(x = as.numeric((result[,2])[-7]),y=s.l,
+       col="purple",type="p",lty=2,pch=24) # simulanteous lower
+points(x = as.numeric((result[,2])[-7]),y=s.u,
+       col="purple",type="p",lty=2,pch=25) # simulanteous upper
+abline(h=c(0,1),lwd=1,col="red")
+legend(x=2.4,y=0.95,c("pointwise","simultaneous","boundary line"),
+       col=c(4,"purple","red"),pch=c(24,24,NA),lty=c(NA,NA,1))
+### plot2 
+plot(as.numeric((result[,2])[-7]),result[1:6,5],col=1,
+     xlim=c(2.4,3.85),ylim=c(0,1),xlab="t",ylab="F(t)",
+     pch=16,main="\\hat{F} and their CIs with logit")
+points(x = as.numeric((result[,2])[-7]),y=result[-7,7],
+       col=4,type="p",lty=2,pch=24) #pointwise lower
+points(x = as.numeric((result[,2])[-7]),y=result[-7,8],
+       col=4,type="p",lty=2,pch=25) # pointwise upper
+l.si <- y[-c(1,8)]/(y[-c(1,8)]+(1-y[-c(1,8)])*exp(e *1/(y[-c(1,8)]*(1-y[-c(1,8)]))*sqrt(est_VarF)))
+u.si <- y[-c(1,8)]/(y[-c(1,8)]+(1-y[-c(1,8)])/exp(e *1/(y[-c(1,8)]*(1-y[-c(1,8)]))*sqrt(est_VarF)))
+points(x = as.numeric((result[,2])[-7]),y=l.si,
+       col="purple",type="p",lty=2,pch=24) # simulanteous lower
+points(x = as.numeric((result[,2])[-7]),y=u.si,
+       col="purple",type="p",lty=2,pch=25) # simulanteous upper
+abline(h=c(0,1),lwd=1,col="red")
+legend(x=2.4,y=0.95,c("pointwise","simultaneous","boundary line"),
+       col=c(4,"purple","red"),pch=c(24,24,NA),lty=c(NA,NA,1))
+```
+
+## (f)
+Pointwise CI and simultaneous confidence bands are two different approaches to contructing CI.
+Pointwise CIs are constructed based on the concept of treating each failure sample likely as independent asymptotic normal samples.
+However,simultaneous confidence bands are constructed by considering the Bonferroni correction concept,which is usually more conservative and makes the width longer.
+
+# 3.
+## (b)(c)
+```{r echo=FALSE}
+file_AB <- "3bc.jpg"
+knitr::include_graphics(file_AB)
+```
+
+## (d)
+```{r echo=FALSE}
+file_AB <- "3d.jpg"
+knitr::include_graphics(file_AB)
+```
+
+# 4.
+## (a)
+**Why?**
+From the concept of limit,
+$$
+\dfrac{-\log(1-p)}{p} \xrightarrow[p\rightarrow 0]{L.H.} \dfrac{1}{1-p}  \xrightarrow{p\rightarrow 0} 1
+$$
+The condition to assure a good agreement between $\hat{H}(t_i)$ and $\hat{\hat{H}}(t_i)$ is $\hat{p}_j$ for each j is small and close to 0,and thus agree between $\hat{F}(t_i)$ and $\hat{\hat{F}}(t_i)$.
+
+**(correct)**
+By Maclaurin series,
+$$
+-\log(1-x) \approx x+\frac{x^2}{2}+\frac{x^3}{3}+...
+$$
+If x is small enough,above approxiate x.Thus,
+$$
+\hat{H}(t_i) \approx \hat{\hat{H}}(t_i) \ \text{and }\hat{F}(t)=1-\exp(-\hat{H}(t)) \approx \hat{\hat{F}}(t)
+$$
+
+## (b)
+```{r echo=FALSE}
+file_AB <- "4b.jpg"
+knitr::include_graphics(file_AB)
+```
+
+## (c)
+Do the organization for "Fan.csv":
+```{r eval=FALSE}
+# wrong 
+data_4c <-read.csv("Fan.csv")
+di_index <- which(data_4c$Censoring.Indicator == "Fail")
+di <- rep(0,length(data_4c[,1]))
+di[di_index]=data_4c$Count[di_index]
+ri <- rep(0,length(data_4c[,1]))
+ri[-di_index] =data_4c$Count[-di_index]
+ni <- 0
+ni[1] <- sum(data_4c$Count)
+for(i in 2:length(data_4c[,1])){
+  ni[i] <- ni[1] - sum(data_4c$Count[1:i-1])
+}
+Si=cumprod(1-di/ni);Fi=1-Si
+Hi_KM=-log(Si)
+Hi_NA=cumsum(di/ni)
+tab <- round(cbind(data_4c[,1],di,ni,di/ni,
+                   "H(ti)K.M"=Hi_KM,"H(ti)N.A"=Hi_NA),4)
+colnames(tab)[c(1,4)]=c("ti","di/ni")
+tab=rbind(c(0,0,70,0,0,0),tab)
+knitr::kable(tab)
+```
+
+$$
+1-F(t) = \exp{(-H(t))} \Rightarrow  F(t) = 1-\exp{(-H(t))}
+$$
+Let's present the table for comparison between K.M F(t) and N.A F(t):
+```{r eval=FALSE}
+#wrong
+compar_F <- data.frame("ti"=tab[,1],
+                       "cd"=round(c(0,di/ni),4),
+                       "V1"=round(1-exp(-tab[,5]),4),
+                       "V2"=round(1-exp(-tab[,6]),4))
+colnames(compar_F)[2:4] <- c("di/ni","K.M","N.A")
+knitr::kable(compar_F)
+```
+
+```{r}
+# correct
+data_4c <-read.csv("Fan.csv")
+t.index <- unique(data_4c$Hours)
+di <- rep(0,length(t.index))
+label=0
+for (i in 1:35){
+  label <- which(data_4c$Hours == t.index[i] & data_4c$Censoring.Indicator=="Fail") 
+  di[i] <- ifelse(length(label)==0,0,data_4c$Count[label])
+}
+ri <- rep(0,length(t.index))
+for (i in 1:35){
+  label <- which(data_4c$Hours == t.index[i] & data_4c$Censoring.Indicator=="Censored") 
+  ri[i] <- ifelse(length(label)==0,0,data_4c$Count[label])
+}
+
+ni <- 0
+ni[1] <- sum(data_4c$Count)
+for(i in 2:length(di)){
+  ni[i] <- ni[1] - sum(ri[1:i-1])-sum(di[1:i-1])
+}
+Si=cumprod(1-di/ni);Fi=1-Si
+Hi_KM=-log(Si)
+Hi_NA=cumsum(di/ni)
+K.M = 1-exp(-Hi_KM)
+N.A = 1-exp(-Hi_NA)
+
+result <- data.frame("ti"=t.index,
+                     "di"=di,"ni"=ni,
+                     "pi"=round(di/ni,4),
+                     "V1"=round(K.M,4),
+                     "V2"=round(N.A,4))
+colnames(result)[5:6] <- c("K.M","N.A")
+knitr::kable(result)
+```
+
+From the above,(K.M) CDF and (N.A) CDF are very approximate,but at t=8750, there is a slight difference between the two values because $\hat{p}$ at t=8750 is not approximated to 0 from the discussion of Problem 4,(a).
+
+## (d)
+**why?**
+```{r echo=FALSE}
+file_AB <- "4d.jpg"
+knitr::include_graphics(file_AB)
+```
+
+## (e)
+~~For this situation,each $n_i$'s are unknown,we can estimation the CDF within each interval.~~
+~~Suppose that for each interval,with probability $\pi_i$.~~
+~~The likelihood:~~
+$$
+\begin{split}
+L(\pi)  & \propto  p_1^{l_1}(1-p_1)^{r_1}(p_1+p_2)^{l_2}(1-(p_1+p_2))^{r_2}... \\
+&=\prod_{i=1}^{n} \xi_{i}^{l_1}(1-\xi_i)^{r_i} , \\
+& \text{where }\xi_i =\sum^{i}_{j=1}p_j,l_i:\text{numbers of failed},r_i:\text{numbers of censored}
+\end{split}
+$$
+~~The MLE of $\xi_i =\frac{l_i}{l_i+r_i}$,furthermore,we can get all $\hat{p_j}$.Thus,the estimator of $\hat{H}(t) \ \text{and } \hat{\hat{H}}(t)$ can be obtained.~~
+
+**(correct)**
+At time $t_i,n_i = n - \sum^{i-1}_{j=1}(d_j+r_j)$.Hence,$\hat{p}_j = d_j/n_j$ can be used when failure and censoring times are grouped into common intervals.
+
+# 5.
+```{r echo=FALSE}
+file_AB <- "5.jpg"
+knitr::include_graphics(file_AB)
+```
