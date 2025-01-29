@@ -1,0 +1,194 @@
+---
+title: "Reliability Analysis-HW1"
+author: 
+- 'ID : 111024517'
+- 'Name : 鄭家豪'
+date: due on 03/08
+geometry: left=3cm,right=3cm,top=2cm,bottom=2cm
+header-includes:
+  - \usepackage{leading}
+  - \leading{18pt}
+  - \usepackage{xeCJK}
+  - \setCJKmainfont{標楷體}
+  - \setCJKmonofont{標楷體}
+output:
+  pdf_document:
+    latex_engine: xelatex
+classoption: a4paper
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Problem 1
+## (a)
+可以採用 Chapter 1,Example 4(Heat Exchanger Tube Crack Data) 的例子來解釋這個事情。由於每次檢查時，將不足以造成核電廠安全問題的極少數有裂縫管子都給維修好，這對於工廠的運作是沒效率的。所以在建造機器前，會考慮機器內可容忍最低比例的裂縫管子使運作安全而建造。通常不會考慮到能容忍一半以上的失敗品同時存在，這會造成安全性的問題。
+
+## (b)
+通常可靠度資料會有 censored data ，所以在大部分的可靠度資料中，沒辦法從期望值和變異數得知想要的資訊。
+
+## (c)
+比如機車使用的電瓶壽命，這個產品可能會依照使用頻率與氣候而有所不同的壽命，考慮使用其 mean time to failure 來分析想知道的問題。
+
+# Problem 2
+The CDF of the lifetime T to the transmission for the Model X automobile is
+\[F(t)=1-\exp{[-(\dfrac{t}{130})^{2.5}]},t>0,\]
+where time is measured in thousands of miles. A Model X automobile with 120 thousand miles of
+previous service is being offered for sale.
+
+## (a)
+The desired probability is
+\[P(T<150|T>120)=\dfrac{F(150)-F(120)}{1-F(120)}=1-\exp{[-((15/13)^{2.5}-(12/13)^{2.5})]}=0.457446\]
+```{r}
+#2.a
+d <- (15/13)^(2.5) - (12/13)^(2.5)
+1-exp(-d)
+```
+
+## (b)
+Its remaining-life time is defined by U=T-120 condition on T > 120.
+The CDF of $U|\{T>120\}$ is
+\[G(u|T>120) = P(T-120 \leq u|T>120)=\dfrac{F(u+120)-F(120)}{1-F(120)},u >0.\]
+Let m be the desired median of $U|\{T>120\}$,we have
+$$
+\begin{split}
+&0.5=G(m|T>120)=1-\exp(-\dfrac{(m+120)^{2.5}-120^{2.5}}{130^{2.5}}) \\
+& m = (130^{2.5}\times\ln(2)+120^{2.5})^{1/2.5} -120 = 33.36985
+\end{split}
+$$
+```{r}
+#2.b
+(130^(2.5)*log(2)+120^(2.5))^(1/2.5)-120
+```
+
+# Problem 3
+\[T \sim F(t)=\dfrac{t}{2},0 \leq t \leq 2.\]
+
+## (a)
+The pdf of T, f(t) = $dF(t)/dt=1/2$,0<t<2.  
+The hf of T,h(t) = f(t)/(1-F(t)) = 1/(2-t),0<t<2.
+
+## (b)
+\[1-\exp{[-\int_{0}^{t}h(x)dx]}=1-\exp{(-\ln{\dfrac{2}{2-t})}} = 1-(2-t)/2 = t/2 = F(t)\]
+
+## (c)
+* pdf plot:
+```{r}
+pdf <- function(x){return(rep(1/2,length(x)))}
+curve(pdf,from = 0,to = 2,xlab = "t",
+      ylab="f(t)",ylim=c(0,0.6),
+      main="Probability Density Function")
+```
+
+* cdf plot:
+```{r}
+cdf = function(x){x/2}
+curve(cdf,from = 0,to = 2,xlab = "t",
+      ylab="F(t)",ylim=c(0,1),
+      main="Cumulative Distribution Function")
+```
+
+## (d)
+* Hazard function plot:
+```{r}
+# correct
+hf = function(x){1/(2-x)}
+curve(hf,from = 0.0001,to = 1.9999,xlab = "t",
+      ylab="h(t)",
+      main="Hazard Function",
+      ylim=c(0,30))
+```
+由於 $h(t)=1/(2-t)$ 於 $t=2$ 是 undefined，當 $t \rightarrow 2^{-}$，會使得 h(t) 急遽增加，由上面圖型可看出。
+
+## (e)
+```{r}
+# correct
+par(mfrow=c(1,2))
+curve(pdf,from = 0,to = 2,xlab = "t",
+      ylab="f(t)",ylim=c(0,0.6),
+      main="Probability Density")
+points(x = 0.8,y=0.5,pch=16,col="red")
+rect(xleft = 0, xright = 0.8, 
+     ybottom = 0, ytop =0.5,
+     border = NA, col = adjustcolor("blue", alpha = 0.3))
+curve(cdf,from = 0,to = 2,xlab = "t",
+      ylab="F(t)",ylim=c(0,1),
+      main="Cumulative Distribution")
+points(x = 0.8,y=0.4,pch=16,col="red")
+text(0.95,0.4,expression(t[0.4]),cex=0.8)
+segments(x0=0.8,y0=0,x1=0.8,y1=0.4,lty=2,col = "red")
+segments(x0=0,y0=0.4,x1=0.8,y1=0.4,lty=2,col = "red")
+```
+
+By Probability integral transformation,$F(t) \sim U(0,1).$
+\[\int^{t_p}_{0}dx=p \Rightarrow t_p = p.\text{So,}t_{0.4}=0.4.\]
+在前面的小題中，得知 $T \sim U(0,1/2)$，以及觀察其 cdf plot ，可看出 T 的 p 百分位數對應到 t=2p。F(t) 一樣是 uniform distribution，如果 T 乘 2倍就和 F(t) 的分佈一樣，那對應的 p 百分位數就會除以 2，得到 p。
+
+## (f)
+\[Pr(0.1<T\leq0.2) = F(0.2)-F(0.1)=0.05\]
+\[Pr(0.8<T\leq0.9) = F(0.9)-F(0.8)=0.05\]
+由 pdf plot，因為圖形是一個矩形，可看出這兩個機率值等於 area = 0.1(difference) $\times$ 1/2(density)。
+```{r}
+# correct
+curve(pdf,from = 0,to = 2,xlab = "t",
+      ylab="f(t)",ylim=c(0,0.6),
+      main="Probability Density")
+rect(xleft = 0.1, xright = 0.2, 
+     ybottom = 0, ytop =0.5,
+     border = NA, col = adjustcolor("blue", alpha = 0.3))
+text(0.15,0.55,"P(0.1 < T <= 0.2)",cex=0.8)
+rect(xleft = 0.8, xright = 0.9, 
+     ybottom = 0, ytop =0.5,
+     border = NA, col = adjustcolor("yellow", alpha = 0.3))
+text(0.85,0.55,"P(0.8 < T <= 0.9)",cex=0.8)
+```
+
+
+## (g)
+\[Pr(0.1<T\leq0.2|T>0.1) = \dfrac{0.05}{1-F(0.1)}=0.05/0.95 =1/19,\]
+comparing to $h(0.1)\times\Delta t = \dfrac{f(0.1)}{1-F(0.1)}\times0.1 = \dfrac{0.1}{1.9}=1/19,$equality exactly.
+\[Pr(0.8<T\leq0.9|T>0.8) = \dfrac{0.05}{1-F(0.8)}=0.05/0.60 =1/12,\]
+comparing to $h(0.8)\times\Delta t = \dfrac{f(0.8)}{1-F(0.8)}\times0.1 = \dfrac{0.1}{1.2}=1/12,$equality exactly.
+
+## (h)
+From the definition of h(t),
+\[h(t)=\lim_{\Delta t \rightarrow 0}\dfrac{P(t<T<t+\Delta t|T>t)}{\Delta t},\]
+the h(t) gives the "propensity" that a unit will fail in the next small interval of time,conditional on that is has survived to time t.So,$h(t)\times \Delta t \approx P(t<T<t+\Delta t|T>t).$
+The result of part (g) is obtained accroding to this.
+
+# Problem 4
+\[L(t_0)=E(U)=\dfrac{1}{1-F(t_0)}\int_{t_0}^{\infty}[1-F(z)]dz.\]
+
+## (a)
+$$
+\begin{split}
+&L(t)(1-F(t)) = \int_{t}^{\infty}[1-F(z)]dz \\
+&\text{Differential the above with respect to t}, \\
+&L^{'}(t)(1-F(t))-f(t)L(t) = -(1-F(t)) \Rightarrow  \dfrac{1+L'(t)}{L(t)} = \dfrac{f(t)}{1-F(t)}.
+\end{split}
+$$
+$\because H(t) = \int_{0}^{t}\dfrac{f(z)}{1-F(z)}dz = -\ln{[1-F(t)]}$  
+$\therefore F(t) = 1-\exp{[-\int_{0}^{t}\dfrac{f(z)}{1-F(z)}dz]} = 1-\exp{[-\int^{t}_{0}\dfrac{1+L'(z)}{L(z)}dz]}$.
+
+## (b)
+\[S(t)=1-F(t)=\exp{[-\int^{t}_{0}\dfrac{1+L'(t)}{L(t)}dz]}\]
+\[h(t)=\dfrac{f(t)}{1-F(t)} = \dfrac{1+L'(t)}{L(t)}\]
+\[f(t)=S(t)\times h(t)=\dfrac{1+L'(t)}{L(t)}\times\exp{[-\int^{t}_{0}\dfrac{1+L'(t)}{L(t)}dz]}\]
+
+# Problem 5
+
+```{r}
+#install.packages("binom")
+library("binom")
+r=1000
+p=seq(0,1,length=r)
+n=50
+cp=0
+for(i in 1:length(p)){
+  cp[i]=binom.coverage(p[i],n,0.95,method = "lrt")$coverage
+}
+plot(p,cp,type="l",ylim=c(0.85,1),main="LRT interval (n=50)")
+abline(h=0.95,col=2)
+```
+
