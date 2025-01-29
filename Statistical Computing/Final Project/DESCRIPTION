@@ -1,0 +1,15 @@
+Package: emGMM
+Type: Package
+Title: GMM by EM algorithm
+Version: 3.6.2
+Author: 111024517
+Maintainer: The package maintainer <yourself@somewhere.net>
+Description: Do EM algorithm for estimating Gaussian Mixture model.
+License: GPL (>=2)
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.2.3
+Imports: mvtnorm
+Depends: R (>= 2.10)
+NeedsCompilation: no
+Packaged: 2023-06-15 07:53:07 UTC; panor
