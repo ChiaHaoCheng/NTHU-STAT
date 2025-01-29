@@ -24,6 +24,6 @@
 方法: Expectation–maximization algorithm、k-means clustering
 
 ## Final Project:  
-目標: Developing an R package for a specific topic in this semester  
+目標: Developing an R package for a specific topic(GMM clusting) in this semester  
 方法: Expectation–maximization algorithm、k-means clustering、devtools
 
