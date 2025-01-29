@@ -1,0 +1,353 @@
+---
+title: "Reliability-HW3"
+author: 
+- 'ID : 111024517'
+- 'Name : 鄭家豪'
+date: due on 04/05
+geometry: left=3cm,right=3cm,top=2cm,bottom=2cm
+header-includes:
+  - \usepackage{leading}
+  - \leading{18pt}
+  - \usepackage{xeCJK}
+  - \setCJKmainfont{標楷體}
+  - \setCJKmonofont{標楷體}
+output:
+  pdf_document:
+    latex_engine: xelatex
+classoption: a4paper
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,comment = "")
+```
+
+# 1.
+## (a)
+$$
+\begin{split}
+& F(t) = \xi \int_{0}^{t}e^{-x}dx + (1-\xi)\int_{0}^{t}\frac{1}{10}e^{-x/10}dx = \xi(1-e^{-t})+(1-\xi)(1-e^{-t/10}) \\
+& \text{,where }x>0,\xi \in [0,1].
+\end{split}
+$$
+
+## (b)
+```{r echo=FALSE}
+library(latex2exp) # write Latex symbol in legend
+mix_CDF <- function(x,xi){
+  xi*(1-exp(-x))+(1-xi)*(1-exp(-x/10))
+}
+x <- seq(0,30,length=1000)
+F0 <- mix_CDF(x,0) #xi=0
+F1 <- mix_CDF(x,0.1) #xi=0.1
+F2 <- mix_CDF(x,0.5) #xi=0.5
+F3 <- mix_CDF(x,0.9) #xi=0.9
+F4 <- mix_CDF(x,1) #xi=1
+plot(x, F0, type="l", col="blue",xlab="t",
+     ylab = "F(t)",ylim = c(0,1.01),lwd = 2,lty=1)
+lines(x, F1, col="red",lty = 2, lwd = 2)
+lines(x, F2, col="green",lty = 2, lwd = 2)
+lines(x, F3, col="orangered3",lty = 2, lwd = 2)
+lines(x, F4, col="violetred4",lty = 1, lwd = 2)
+legend("bottomright", legend = TeX(sprintf("$\\xi = %f$",c(0,0.1,0.5,0.9,1))),
+       col = c("blue", "red", "green","orangered3","violetred4"),
+       lty = c(1, 2, 2,2,1), 
+       lwd = 2)
+```
+
+## (c)
+```{r echo=FALSE}
+plot(log(x[-1]), log(-log(1-F0[-1])), type="l",
+     col="blue",xlab="log(t)",ylab = "log(-log(1-F(t)))",
+     lwd = 2,lty=1,ylim = c(-6,3.5))
+lines(log(x[-1]), log(-log(1-F1[-1])), col="red",lty = 2, lwd = 2)
+lines(log(x[-1]), log(-log(1-F2[-1])), col="green",lty = 2, lwd = 2)
+lines(log(x[-1]), log(-log(1-F3[-1])), col="orangered3",lty = 2, lwd = 2)
+lines(log(x[-1]), log(-log(1-F4[-1])), col="violetred4",lty = 1, lwd = 2)
+legend("bottomright", legend = TeX(sprintf("$\\xi = %f$",c(0,0.1,0.5,0.9,1))),
+       col = c("blue", "red", "green","orangered3","violetred4"),
+       lty = c(1, 2, 2,2,1), 
+       lwd = 2)
+```
+The shape of a mixture of two exponential distributions depends on the value of the mixing parameters $\xi$ and the parameter $\theta=(\theta_1,\theta_2)$.
+See part (b),as $\xi$ increases,the mixture distribution reflects which distribution the sources of variation is weighted on and relative to the pure exponential distribution,the shape of the mixture distribution is similar no matter what $\xi$ is.
+See above Weibull plot,as $\xi$ increases except for 0 and 1,we can find the shape of mixture distribution may be skewed toward the distribution with the higher mean.
+In contrast to the plot from part (b),Weibull distribution has a more flexible shape,which can capture more situations of the mixture distribution.
+
+## (d)
+$$
+h(t) = \dfrac{f(t)}{1-F(t)} = \dfrac{\xi e^{-t}+(1-\xi)\frac{1}{10}e^{-t/10}}{1-(\xi(1-e^{-t})+(1-\xi)(1-e^{-t/10}))}
+$$
+```{r echo=FALSE}
+mix_hf <- function(x,xi){
+  #construct mix_CDF function firstly
+  f <- xi*exp(-x)+(1-xi)*(1/10*exp(-x/10))
+  return(f/(1-mix_CDF(x,xi)))
+}
+hf0 <- mix_hf(x,0) #xi=0
+hf1 <- mix_hf(x,0.1) #xi=0.1
+hf2 <- mix_hf(x,0.5) #xi=0.5
+hf3 <- mix_hf(x,0.9) #xi=0.9
+hf4 <- mix_hf(x,1) #xi=1
+plot(x, hf0, type="l", col="blue",xlab="t",
+     ylab = "h(t)",lwd = 2,lty=1,ylim = c(0,1))
+lines(x, hf1, col="red",lty = 2, lwd = 2)
+lines(x, hf2, col="green",lty = 2, lwd = 2)
+lines(x, hf3, col="orangered3",lty = 2, lwd = 2)
+lines(x, hf4, col="violetred4",lty = 1, lwd = 2)
+legend("topright", legend = TeX(sprintf("$\\xi = %f$",c(0,0.1,0.5,0.9,1))),
+       col = c("blue", "red", "green","orangered3","violetred4"),
+       lty = c(1, 2, 2,2,1), 
+       lwd = 2)
+```
+
+## (e)
+From part (c), we know that when $\xi$=0 or 1, an exact straight line is presented,and when $\xi \neq$ 0 or 1,the line is not exact straight line.
+See the plot of part (d),the pure expoential presents the constant hazard function,and the impure expoential distribution presents the non-constant hazard function.
+It suggests to observe the Weibull plot to confirm whether it is a mixed expoential distribution.
+
+# 2.
+## (a)
+Here I attach LSE fitted line to observe whether there is a linear relationship:  
+```{r echo=FALSE}
+t = c(5,21,28) #fail time
+prob <- (c(1,2,3)-0.5)/25 #eCDF
+par(plt=c(0.2,0.8,0.2,0.8))
+plot(log(t), log(-log(1-prob)), type="p",
+     col="black",yaxt="n",ylab="",xaxt="n",
+     xlab="",ylim=c(-4,1.364055),xlim=log(c(3,30)),
+     pch=20)
+xl=log(seq(1,30,1))
+yl=log(-log(1-(1:25-0.5)/25))
+axis(1,at=xl,lab=exp(xl),cex.axis=0.9)
+axis(2,at=yl,lab=round((1:25-0.5)/25,2),cex.axis=0.9)
+axis(3,at=xl,round(xl,2),las=1,cex.axis=0.9,
+     col = "red",col.axis="red")
+axis(4,at=yl,round(yl,3),cex.axis=0.9,
+     col = "red",col.axis="red")
+mtext("Thousand Cycles", side=1, line=2.5)
+mtext("Proportion Failing", side=2, line=2.5)
+mtext("Log Thousand Cycles", side=3, line=2.5,col = "red")
+mtext("Probability scale", side=4, line=2.5,col = "red")
+LSE <- lm(log(-log(1-prob))~log(t))
+abline(LSE,col=2,pch=16,lwd=2)
+legend("topleft", legend = c("LSE fitted line"), 
+       col = c("red"), pch = NA,lty=1,lwd=2)
+```
+
+## (b)
+With the results of the LSE,the probability scale before 10 thousand cycle can be estimated:
+$$
+\begin{split}
+& \log(-\log(1-\hat{F}(t))) = \hat{\beta}_0 + \hat{\beta}_1 \log(t) \\
+& \hat{F}(t) = 1-\exp(-\exp(\hat{\beta}_0 + \hat{\beta}_1 \log(t)))
+\end{split}
+$$
+```{r echo=FALSE}
+beta_0 <- LSE$coefficients[1]
+beta_1 <- LSE$coefficients[2]
+est_10 <- 1-exp(-exp(beta_0+beta_1*log(10)))
+cat("The proportion:",est_10)
+```
+
+## (c)
+According to Weibull distribution is log-location-scale family,its plotted point in probability plot (by (a)) should be close to the straight line.
+Since it looks very close,we subjectively think that Weibull distribution fits the data well.
+
+## (d)
+The slope and intecept are estimated by LSE method from (a):
+```{r echo=FALSE}
+cat("The estimated intecept coefficient:",LSE$coefficients[1])
+cat("\n")
+cat("The estimated slope coefficient:",LSE$coefficients[2])
+```
+So,
+$$
+\begin{split}
+& \log(t_{(i)}) = \log(\theta)+\frac{1}{\beta}\log(-\log(1-\hat{F}(t_{(i)}))), \\
+& \text{where }\theta:\text{scale parameter;  }\beta:\text{shape parameter}.\\
+& \hat{\beta} = 0.9010872 \\
+& \hat{\theta}= \exp(-(-5.377057)/\hat{\beta})=390.4498
+\end{split}
+$$
+
+## (e)
+With the results of the LSE,the proportion before 100 thousand cycle can be estimated:
+```{r echo=FALSE}
+est_100 <- 1-exp(-exp(beta_0+beta_1*log(100)))
+cat("The proportion:",est_100)
+```
+Estimating the propotion that is beyond the test time 30 thousand cycle can be challenging and subject to higher uncertainty!The estimated proportion is based on the linear structure,that is the same failure mechanism will continue to occur beyond the observed failure times.This extrapolation can be riskly.
+Therefore,the estimate may not be reliable.
+
+## (f)
+By KM estimation,the 100(1-$\alpha$)% confidence band of $\Phi^{-1}_{norm}(F)$ is given by
+$$
+\begin{split}
+& [F_L(t),F_U(t)] = \hat{F}(t) \mp e_{(0.01,0.95,1-\alpha/2)} \text{se}_{\hat{F}}(t) \\
+& \text{qnorm}[F_L(t),F_U(t)] \ \text{is the confidence band.}
+\end{split}
+$$
+```{r include=FALSE}
+## buid the CI
+n=25
+ti=seq(1,30,1)
+di=replicate(n = 30,expr = 0)
+di[c(5,21,28)] = 1
+ni=25-cumsum(di)
+Si=cumprod(1-di/ni)
+Fi=1-Si
+pi = di/ni
+#tab=cbind(ti,di,ri,ni,Si,Fi)
+var_F = 0 
+for (i in 1:30){
+  var_F[i] = Si[i]^2*(cumsum(pi[1:i]/ni[1:i]*(1-pi[1:i]))[i])
+}
+lower <- Fi-3.25*sqrt(var_F)
+lower <- ifelse(lower>0,lower,0.01)
+upper <- Fi+3.25*sqrt(var_F)
+```
+
+```{r echo=FALSE}
+par(plt=c(0.2,0.8,0.2,0.8))
+plot(log(t), qnorm(prob), type="p",
+     col="black",yaxt="n",ylab="",xaxt="n",
+     xlab="",ylim=c(-2.57,2.32),xlim=log(c(5,30)),
+     pch=20)
+xl=log(seq(1,30,1))
+yl=qnorm((1:25-0.5)/25)
+axis(1,at=xl,lab=exp(xl),cex.axis=0.9)
+axis(2,at=yl,lab=round((1:25-0.5)/25,2),cex.axis=0.9)
+axis(3,at=xl,round(xl,2),las=1,cex.axis=0.9,
+     col = "red",col.axis="red")
+axis(4,at=yl,round(yl,3),cex.axis=0.9,
+     col = "red",col.axis="red")
+mtext("Thousand Cycles", side=1, line=2.5)
+mtext("Proportion Failing", side=2, line=2.5)
+mtext("Log Thousand Cycles", side=3, line=2.5,col = "red")
+mtext("Probability scale", side=4, line=2.5,col = "red")
+for(i in 5:27){
+  lines(xl[i:(i+1)],qnorm(lower[c(i,i)]),lty=2,col=4,lwd=2.5)
+  lines(xl[i:(i+1)],qnorm(upper[c(i,i)]),lty=2,col=4,lwd=2.5)
+}
+points(x = xl[28],y=qnorm(lower[28]),
+       col=4,type="p",lty=2,pch=24)
+points(x = xl[28],y=qnorm(upper[28]),
+       col=4,type="p",lty=2,pch=25)
+#points(x = xl[c(5,21,28)],y=qnorm(lower[c(5,21,28)]),
+#       col=2,type="p",lty=2,pch=24)
+#points(x = xl[c(5,21,28)],y=qnorm(upper[c(5,21,28)]),
+#       col=2,type="p",lty=2,pch=25)
+#legend("topleft", legend = c("upper bound", "lower bound"),
+#       col = c("red", "red"),
+#       pch = c(25, 24))
+```
+
+## (g)
+Similar to part (f):
+$$
+-\log(-\log[F_L(t),F_U(t)]) \ \text{is the confidence band.}
+$$
+
+```{r echo=FALSE}
+par(plt=c(0.2,0.8,0.2,0.8))
+plot(t, -log(-log(prob)), type="p",
+     col="black",yaxt="n",ylab="",xaxt="n",
+     xlab="",ylim=c(-1.5,2),xlim=c(5,30),
+     pch=20)
+xl=seq(1,30,1)
+yl=-log(-log((1:25-0.5)/25))
+axis(1,at=xl,lab=xl,cex.axis=0.9,col = "red",col.axis="red")
+axis(2,at=yl,lab=round((1:25-0.5)/25,2),cex.axis=0.9)
+axis(4,at=yl,round(yl,3),cex.axis=0.9,
+     col = "red",col.axis="red")
+mtext("Thousand Cycles", side=1, line=2.5)
+mtext("Proportion Failing", side=2, line=2.5)
+mtext("Probability scale", side=4, line=2.5,col = "red")
+for(i in 5:27){
+  lines(xl[i:(i+1)],-log(-log(lower[c(i,i)])),lty=2,col=4,lwd=2.5)
+  lines(xl[i:(i+1)],-log(-log(upper[c(i,i)])),lty=2,col=4,lwd=2.5)
+}
+points(x = xl[28],y=-log(-log(lower[28])),
+       col=4,type="p",lty=2,pch=24)
+points(x = xl[28],y=-log(-log(upper[28])),
+       col=4,type="p",lty=2,pch=25)
+#points(x = xl[c(5,21,28)],y=-log(-log(lower[c(5,21,28)])),
+#       col=2,type="p",lty=2,pch=24)
+#points(x = xl[c(5,21,28)],y=-log(-log(upper[c(5,21,28)])),
+#       col=2,type="p",lty=2,pch=25)
+#legend("topleft", legend = c("upper bound", "lower bound"),
+#       col = c("red", "red"),
+#       pch = c(25, 24))
+```
+
+# 3.
+## (a)(b)
+$$
+\begin{split}
+& F(t) = 1-[1+(\frac{\log(t)-\mu}{\sigma})]^{-1} \\
+& [1+(\frac{\log(t)-\mu}{\sigma})]^{-1} = 1-F(t) \\
+& \frac{\log(t)-\mu}{\sigma} = \frac{1}{1-F(t)}-1 = \frac{F(t)}{1-F(t)} \\
+& \text{Thus, }\log(t_p)= \mu+\frac{F(t_p)}{1-F(t_p)}\sigma:\text{linear form}
+\end{split}
+$$
+For generating $t_p$,we can use inverse CDF method:
+$$
+t_p = \exp(\mu)\times \exp(\sigma \frac{U_p}{1-U_p}),\text{where }U_p \sim U(0,1)
+$$
+
+## (c)
+```{r echo=FALSE}
+tp <- function(u,sigma,p){
+  exp(u)*exp(sigma*(p/(1-p)))
+}
+n=20
+u=3
+sigma=2
+empCDF <- (1:20-0.5)/20
+set.seed(1271)
+# the scale is large
+random_tp <- tp(u,sigma,runif(n = 20,min = 0,max = 1))
+cat("The generated t:")
+cat("\n")
+knitr::kable(round(t(sort(random_tp)[1:10]),2),
+             col.names = paste("t", 1:10, sep = "."))
+knitr::kable(round(t(sort(random_tp)[11:15]),2),
+             col.names = paste("t", 11:15, sep = "."))
+knitr::kable(round(t(sort(random_tp)[16:20]),2),
+             col.names = paste("t", 16:20, sep = "."))
+```
+
+Next,draw the probability plot:  
+```{r echo=FALSE}
+par(plt=c(0.2,0.8,0.2,0.8))
+plot(x=log(sort(random_tp)),y=empCDF/(1-empCDF),
+     xaxt="n",yaxt="n",ylab="",xlab="",
+     type = "p",pch=20)
+xl <- paste("t", 1:20, sep = ".")
+axis(1,log(sort(random_tp)),xl,las=2.5)
+axis(2,empCDF/(1-empCDF),round(empCDF,2),las=1)
+axis(3,log(sort(random_tp)),round(log(sort(random_tp)),0),las=1,col = "red",col.axis="red")
+axis(4,empCDF/(1-empCDF),round(empCDF/(1-empCDF),2),las=1,col = "red",col.axis="red")
+mtext("t", side=1, line=2.5)
+mtext("Proportion Failing", side=2, line=3)
+mtext("log(t)", side=3, line=2.5,col = "red")
+mtext("Probability scale", side=4, line=3,col = "red")
+LSE <- lm((empCDF/(1-empCDF))[-20] ~ log(sort(random_tp))[-20])
+abline(LSE,col=2,pch=16,lwd=2)
+legend("topleft", legend = c("LSE fitted line(No last point)"), 
+       col = c("red"), pch = NA,lty=1,lwd=2)
+```
+Since the probability scale of the last point is too large, I don't consider it to construct LSE.Thus,most of the points will be closer to the straight line.
+
+## (d)
+
+$$
+\begin{split}
+& \log(t_p)= \mu+\frac{F(t_p)}{1-F(t_p)}\sigma \\
+& \frac{F(t_p)}{1-F(t_p)} = -\frac{\mu}{\sigma}+\frac{1}{\sigma}\log(t_p)
+\end{split}
+$$
+From the above,in the probability plot,
+
+* $\frac{-\mu}{\sigma}$:intercept
+* $\frac{1}{\sigma}$:slope
