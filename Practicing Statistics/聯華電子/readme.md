@@ -19,7 +19,7 @@
 針對Data2一種晶圓產品的即時VM資料(具備Large-Scale特性)，建構預測模型，分析流程如下：  
 1. 對input VM variables進行資料清洗  
 2. 執行多重檢定選出可用的VM變數
-3. 建立多項式迴歸、廣義相加模型、集成學習模型  
+3. 建立多項式迴歸、集成學習模型  
 4. 嘗試使用Lazy Learning: Gaussian Process以提升ensemble learning模型的預測能力  
 5. 比較數個模型優劣  
 ![image](https://github.com/ChiaHaoCheng/NTHU-STAT/blob/3b0024e97099435f0252897e18d9b0bc4c684700/Practicing%20Statistics/%E8%81%AF%E8%8F%AF%E9%9B%BB%E5%AD%90/data2_%E5%B0%81%E9%9D%A2.png)
